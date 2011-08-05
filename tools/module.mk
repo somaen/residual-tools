@@ -17,6 +17,7 @@ TOOLS := \
 	tools/meshb2obj$(EXEEXT) \
 	tools/set2fig$(EXEEXT) \
 	tools/til2bmp$(EXEEXT) \
+	tools/3do2obj$(EXEEXT) \
 	tools/unlab$(EXEEXT) \
 	tools/vima$(EXEEXT) \
 	tools/patchex/patchex$(EXEEXT)
@@ -72,6 +73,11 @@ tools/set2fig$(EXEEXT): $(srcdir)/tools/set2fig.cpp
 	$(CXX) $(CFLAGS) -Wall -o $@ $<
 
 tools/til2bmp$(EXEEXT): $(srcdir)/tools/til2bmp.cpp
+	$(MKDIR) tools/$(DEPDIR)
+	$(CXX) $(CFLAGS) $(DEFINES) -DHAVE_CONFIG_H -I$(srcdir) -I. -Wall \
+	-L$(srcdir)/common -lz -o $@ $< 
+
+tools/3d02obj$(EXEEXT): $(srcdir)/tools/3do2obj.cpp
 	$(MKDIR) tools/$(DEPDIR)
 	$(CXX) $(CFLAGS) $(DEFINES) -DHAVE_CONFIG_H -I$(srcdir) -I. -Wall \
 	-L$(srcdir)/common -lz -o $@ $< 

@@ -153,13 +153,14 @@ struct Mesh
 	void loadBinary(const char *&data) {
 		// 32 bytes with mesh-name
 		memcpy(_name, data, 32);
+		data+=36;
 		
-		_geometryMode = READ_LE_UINT32(data + 36);
-		_lightingMode = READ_LE_UINT32(data + 40);
-		_textureMode = READ_LE_UINT32(data + 44);
-		_numVertices = READ_LE_UINT32(data + 48);
-		_numTextureVerts = READ_LE_UINT32(data + 52);
-		_numFaces = READ_LE_UINT32(data + 56);
+		_geometryMode = READ_LE_UINT32(data);
+		_lightingMode = READ_LE_UINT32(data + 4);
+		_textureMode = READ_LE_UINT32(data + 8);
+		_numVertices = READ_LE_UINT32(data + 12);
+		_numTextureVerts = READ_LE_UINT32(data + 16);
+		_numFaces = READ_LE_UINT32(data + 20);
 
 		_vertices = new Vector3d[_numVertices];
 		_verticesI = new float[_numVertices];
@@ -167,7 +168,7 @@ struct Mesh
 		_textureVerts = new Vector2d[_numTextureVerts];
 		_faces = new MeshFace[_numFaces];
 		_materialID = new uint[_numFaces];
-		data += 60;
+		data += 24;
 		/*for (uint i = 0; i < 3 * _numVertices; i++) {
 			// TODO: Use Vector3d for this, to simplify storage.
 			_vertices[i] = get_float(data);
@@ -232,6 +233,8 @@ struct Mesh
 			ss << "\t" << i << ":\t" << _faces[i]._normal.toString() << std::endl;
 		}
 		
+		return ss.str();
+		
 	}
 };
 
@@ -240,9 +243,9 @@ class Geoset
 public:
 	uint _numMeshes;
 	Mesh *_meshes;
-	void loadBinary(const char *data) {
+	void loadBinary(const char *&data) {
 		_numMeshes = READ_LE_UINT32(data);
-		data+=8;
+		data+=4;
 		_meshes = new Mesh[_numMeshes];
 		for (uint i = 0; i < _numMeshes; i++)
 			//_meshes[i].loadBinary(data, materials);
@@ -352,6 +355,7 @@ public:
 		_id = READ_LE_UINT32(data);
 		// Num-materials
 		_numMaterials = READ_LE_UINT32(data+4);
+		data += 8;
 		// Each material has 32 bytes reserved for it's name.
 		// We don't really care about the materials, just their names.
 		_materialNames = new char[_numMaterials][32];
@@ -361,15 +365,15 @@ public:
 			data += 32;
 		}
 		// Let's adjust the data-pointer, to the offset after that block, to simplify offsets hereafter.
-		data +=8 + _numMaterials * 32;
+		//data +=8 + _numMaterials * 32;
 		// Then follows the 3do-name
 		memcpy(_modelName, data, 32);
-		
+		data += 36; // Skip 4 bytes after the name.
 		// Num-geosets
-		_numGeosets = READ_LE_UINT32(data + 32);
+		_numGeosets = READ_LE_UINT32(data);
 		_geoSets = new Geoset[_numGeosets];
-		data += 36;
-		for(uint i = 0; i < length; i++) {
+		data += 4;
+		for(uint i = 0; i < _numGeosets; i++) {
 			_geoSets[i].loadBinary(data);
 		}
 		_numHierNodes = READ_LE_UINT32(data + 4);
@@ -384,7 +388,7 @@ public:
 	
 	// Savers
 	
-	void writeText() {
+	std::string writeText() {
 		std::stringstream ss;
 		
 		// Header:
@@ -418,7 +422,7 @@ public:
 		for(uint i = 0; i < _numHierNodes; i++) {
 			ss << "\t" << i << ":\t" << _rootHierNode->toString() << std::endl;
 		}
-		
+		return ss.str();
 	}
 };
 
@@ -432,6 +436,7 @@ void ParseFile(const char *data, uint length, std::string filename) {
 	
 	Model m;
 	m.loadBinary(data,length);
+	std::cout << m.writeText();
 }	
 
 int main(int argc, char **argv) {
