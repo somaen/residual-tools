@@ -21,12 +21,32 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <sstream>
 #include <common/endian.h>
 
 class Mesh;
 class MeshFace;
 class Geoset;
 class Model;
+
+struct Vector2d {
+	float _coords[2];
+	void set(float x, float y) {
+		_coords[0] = x;
+		_coords[1] = y;
+	}
+	Vector2d(float x=0.0f, float y=0.0f) {
+		set(x,y);
+	}
+	// TODO: Proper operator
+	std::string toString() {
+		std::stringstream ss;
+		
+		ss << _coords[0] << "\t" << _coords[1];
+		
+		return ss.str();
+	}
+};
 
 struct Vector3d {
 	float _coords[3];
@@ -38,10 +58,22 @@ struct Vector3d {
 	Vector3d(float x=0.0f, float y=0.0f, float z=0.0f) {
 		set(x,y,z);
 	}
+	// TODO: Proper operator
+	std::string toString() {
+		std::stringstream ss;
+		
+		ss << _coords[0] << "\t" << _coords[1] << "\t" << _coords[2] << "\t";
+		
+		return ss.str();
+	}
 };
 
 inline Vector3d get_vector3d(const char *data) {
 	return Vector3d(get_float(data), get_float(data + 4), get_float(data + 8));
+};
+
+inline Vector2d get_vector2d(const char *data) {
+	return Vector2d(get_float(data), get_float(data + 4));
 };
 
 
@@ -51,7 +83,7 @@ struct MeshFace
 	uint _materialIndex;
 	int _type, _geo, _light, _tex;
 	float _extraLight;
-	int _numVertices;
+	uint _numVertices;
 	int *_vertices, *_texVertices;
 	Vector3d _normal;
 	int loadBinary(const char *&data) {
@@ -67,7 +99,7 @@ struct MeshFace
 		data += 76;
 		
 		_vertices = new int[_numVertices];
-		for (int i = 0; i < _numVertices; i++) {
+		for (uint i = 0; i < _numVertices; i++) {
 			_vertices[i] = READ_LE_UINT32(data);
 			data += 4;
 		}
@@ -75,7 +107,7 @@ struct MeshFace
 			_texVertices = NULL;
 		else {
 			_texVertices = new int[_numVertices];
-			for (int i = 0; i < _numVertices; i++) {
+			for (uint i = 0; i < _numVertices; i++) {
 				_texVertices[i] = READ_LE_UINT32(data);
 				data += 4;
 			}
@@ -91,16 +123,29 @@ struct MeshFace
 		return materialPtr;
 	}
 	
+	std::string toString() {
+		std::stringstream ss;
+		// TODO: type is 4-character hex, extralight is 4-decimal float
+		ss << _materialIndex << "\t" << std::hex << _type << "\t" << _geo << "\t" << _light << "\t" << _tex << "\t" << _extraLight << "\t" << _numVertices;
+		// TODO, this part has fixed-point comma.
+		for(uint i = 0; i < _numVertices; i++) {
+			ss << "\t" << _vertices[i] << ", " << _texVertices[i];
+		}
+		
+		return ss.str();
+	}
+	
 };
 
 struct Mesh
 {
 	char _name[32];
 	uint _geometryMode, _lightingMode, _textureMode, _numVertices, _numTextureVerts, _numFaces, _shadow;
-	float *_vertices;
+	//float *_vertices;
+	Vector3d *_vertices;
 	float *_verticesI;
-	float *_vertNormals;
-	float *_textureVerts;
+	Vector3d *_vertNormals;
+	Vector2d *_textureVerts;
 	float _radius;
 	MeshFace *_faces;
 	uint *_materialID;
@@ -116,20 +161,26 @@ struct Mesh
 		_numTextureVerts = READ_LE_UINT32(data + 52);
 		_numFaces = READ_LE_UINT32(data + 56);
 
-		_vertices = new float[3 * _numVertices];
+		_vertices = new Vector3d[_numVertices];
 		_verticesI = new float[_numVertices];
-		_vertNormals = new float[3 * _numVertices];
-		_textureVerts = new float[2 * _numTextureVerts];
+		_vertNormals = new Vector3d[_numVertices];
+		_textureVerts = new Vector2d[_numTextureVerts];
 		_faces = new MeshFace[_numFaces];
 		_materialID = new uint[_numFaces];
 		data += 60;
-		for (uint i = 0; i < 3 * _numVertices; i++) {
+		/*for (uint i = 0; i < 3 * _numVertices; i++) {
+			// TODO: Use Vector3d for this, to simplify storage.
 			_vertices[i] = get_float(data);
 			data += 4;
+		}*/
+		for (uint i = 0; i < _numVertices; i++) {
+			// TODO: Use Vector3d for this, to simplify storage.
+			_vertices[i] = get_vector3d(data);
+			data += 12;
 		}
-		for (uint i = 0; i < 2 * _numTextureVerts; i++) {
-			_textureVerts[i] = get_float(data);
-			data += 4;
+		for (uint i = 0; i < _numTextureVerts; i++) {
+			_textureVerts[i] = get_vector2d(data);
+			data += 8;
 		}
 		for (uint i = 0; i < _numVertices; i++) {
 			_verticesI[i] = get_float(data);
@@ -139,13 +190,48 @@ struct Mesh
 		for (uint i = 0; i < _numFaces; i++)
 			//_materialid[i] = _faces[i].loadBinary(data, materials);
 			_materialID[i] = _faces[i].loadBinary(data);
-		for (uint i = 0; i < 3 * _numVertices; i++) {
-			_vertNormals[i] = get_float(data);
-			data += 4;
+		for (uint i = 0; i < _numVertices; i++) {
+			_vertNormals[i] = get_vector3d(data);
+			data += 12;
 		}
 		_shadow = READ_LE_UINT32(data);
 		_radius = get_float(data + 8);
 		data += 36;
+	}
+	
+	std::string writeText() {
+		std::stringstream ss;
+		
+		ss << "NAME " << _name << std::endl;
+		ss << "RADIUS\t" << _radius << std::endl
+			<< "SHADOW\t" << _shadow << std::endl
+			<< "GEOMETRYMODE\t" << _geometryMode << std::endl
+			<< "LIGHTINGMODE\t" << _lightingMode << std::endl
+			<< "TEXTUREMODE\t" << _textureMode << std::endl;
+		
+		ss << "VERTICES " << _numVertices << std::endl;
+		for(uint i = 0; i < _numVertices; i++) {
+			ss << "\t" << i << ":\t" << _vertices[i].toString() << "\t" << 0.0f << std::endl;
+		}
+		ss << "TEXTURE VERTICES " << _numTextureVerts << std::endl;
+		for(uint i = 0; i < _numVertices; i++) {
+			ss << "\t" << i << ":\t" << _textureVerts[i].toString() << std::endl;
+		}
+		ss << "VERTEX NORMALS" << std::endl;
+		for(uint i = 0; i < _numVertices; i++) {
+			ss << "\t" << i << ":\t" << _vertNormals[i].toString() << "\t" << 0.0f << std::endl;
+		}
+		
+		ss << "FACES " << _numFaces << std::endl;
+		for(uint i = 0; i < _numFaces; i++) {
+			ss << "\t" << i << ":\t" << _faces[i].toString() << std::endl;
+		}
+		
+		ss << "FACE NORMALS" << std::endl;
+		for(uint i = 0; i < _numFaces; i++) {
+			ss << "\t" << i << ":\t" << _faces[i]._normal.toString() << std::endl;
+		}
+		
 	}
 };
 
@@ -161,6 +247,16 @@ public:
 		for (uint i = 0; i < _numMeshes; i++)
 			//_meshes[i].loadBinary(data, materials);
 			_meshes[i].loadBinary(data);
+	}
+	
+	std::string writeText() {
+		std::stringstream ss;
+		ss << "MESHES " << _numMeshes << std::endl;
+		for(uint i = 0; i < _numMeshes; i++) {
+			ss << "MESH " << i << std::endl;
+			ss << _meshes[i].writeText();
+		}
+		return ss.str();
 	}
 };
 
@@ -229,6 +325,10 @@ struct ModelNode {
 		_hierVisible = true;
 		_initialized = true;
 	}
+	
+	std::string toString() {
+		return "NOT IMPLEMENTED!";
+	}
 };
 
 
@@ -242,6 +342,11 @@ public:
 	float _radius;
 	char _modelName[32]; 
 	char (*_materialNames)[32];
+	
+	// Loaders
+	void loadText() {
+	
+	}
 	
 	void loadBinary(const char *&data, uint length) {
 		_id = READ_LE_UINT32(data);
@@ -275,6 +380,45 @@ public:
 		}
 		_radius = get_float(data);
 		_insertOffset = get_vector3d(data + 40);
+	}
+	
+	// Savers
+	
+	void writeText() {
+		std::stringstream ss;
+		
+		// Header:
+		ss << "# MODEL " << _modelName << " exported by 3do2obj" << std::endl;
+		
+		// Skipping the comment-blocks, we get:
+		ss << "SECTION: HEADER" << std::endl;
+		ss << "3DO 2.1" << std::endl;
+		
+		ss << "SECTION: MODELRESOURCE" << std::endl;
+		ss << "MATERIALS " << _numMaterials << std::endl;
+		for(uint i = 0; i < _numMaterials; i++) {
+			ss << "\t\t" << i << ":" << "\t" << _materialNames[i] << std::endl;
+		}
+		
+		ss << "SECTION: GEOMETRYDEF" << std::endl;
+		ss << "RADIUS\t" << _radius << std::endl; // TODO: Set float-precision to 6 decimals, padded.
+		// TODO: Add vector2stream-operator.
+		ss << "INSERT OFFSET\t" << _insertOffset._coords[0] << "\t" << _insertOffset._coords[0] << "\t" <<
+			_insertOffset._coords[0] << "\t" << std::endl;
+		
+		ss << "GEOSETS " << _numGeosets << std::endl;
+		for(uint i = 0; i < _numGeosets; i++) {
+			ss << "GEOSET " << i << std::endl;
+			ss << _geoSets[i].writeText();
+		}
+		
+		ss << "SECTION: HIERARCHYDEF" << std::endl;
+		// This is a tree, but it's stored in an array, so just print it.
+		ss << "HIERARCHY NODES " << _numHierNodes << std::endl;
+		for(uint i = 0; i < _numHierNodes; i++) {
+			ss << "\t" << i << ":\t" << _rootHierNode->toString() << std::endl;
+		}
+		
 	}
 };
 
