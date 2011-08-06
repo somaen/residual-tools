@@ -197,7 +197,7 @@ std::string Mesh::writeText() {
 		ss << "\t" << i << ":\t" << _vertices[i].toString() << "\t" << 0.0f << std::endl;
 	}
 	ss << "TEXTURE VERTICES " << _numTextureVerts << std::endl;
-	for(uint i = 0; i < _numVertices; i++) {
+	for(uint i = 0; i < _numTextureVerts; i++) {
 		ss << "\t" << i << ":\t" << _textureVerts[i].toString() << std::endl;
 	}
 	ss << "VERTEX NORMALS" << std::endl;
