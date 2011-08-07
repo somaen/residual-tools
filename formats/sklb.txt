@@ -1,0 +1,8 @@
+PadString = 32byte string
+
+int numBones
+{
+	PadString bone
+	PadString child
+	28-bytes of data, where the first two 4-byte groups is usually 0
+} repeated numBones-times.

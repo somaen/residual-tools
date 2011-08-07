@@ -1,0 +1,14 @@
+Notation:
+LAString = pair of length + C-string of that length
+
+animb:
+LAString <filename>
+// 8 bytes of unknowns
+{
+	LAString boneName
+	int unknown1 (often 4)
+	int unknown2 (often 4)
+	int unknown3 (often 0)
+	int numItems
+	... then numItems*20 (or 16 in some cases) of data, before the next
+} repeat til end of file.
