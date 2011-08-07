@@ -240,7 +240,7 @@ std::string Mesh::writeOBJText(uint vertOffset, uint texOffset) {
 	}
 	
 	ss << "#FACES " << _numFaces << std::endl;
-	ss << "g " << _name << std::endl;
+	ss << "o " << _name << std::endl;
 	for(uint i = 0; i < _numFaces; i++) {
 		ss << _faces[i].toOBJString(vertOffset,texOffset) << std::endl;
 	}
@@ -387,7 +387,7 @@ std::string ModelNode::toString() {
 	ss << "0x" << std::hex << std::setw(5) << _type << "\t";
 	ss << std::dec;
 	
-	ss << _meshNum << "\t" << _parentIdx << "\t" << _childIdx << "\t" << _siblingIdx << "\t" << _numChildren;
+	ss << _meshNum << "\t" << _parentIdx << "\t" << _childIdx << "\t" << _siblingIdx << "\t" << _numChildren << "\t";
 	
 	ss << _pos.toString() << "\t" << _pitch << "\t" << _yaw << "\t" << _roll << "\t" <<
 	_pivot.toString() << "\t" << _name;
