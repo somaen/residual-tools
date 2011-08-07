@@ -335,8 +335,10 @@ void ModelNode::loadBinary(const char *&data, ModelNode *hierNodes, const Geoset
 	_flags = READ_LE_UINT32(data + 64);
 	_type = READ_LE_UINT32(data + 72);
 	_meshNum = READ_LE_UINT32(data + 76);
-	if (_meshNum < 0)
+	if (_meshNum < 0) {
 		_mesh = NULL;
+		_meshNum = -1;
+	}
 	else
 		_mesh = g->_meshes + _meshNum;
 	_depth = READ_LE_UINT32(data + 80);
@@ -361,21 +363,26 @@ void ModelNode::loadBinary(const char *&data, ModelNode *hierNodes, const Geoset
 		_parentIdx = READ_LE_UINT32(data);
 		_parent = hierNodes + _parentIdx;
 		data += 4;
-	} else
+	} else {
 		_parent = NULL;
+		_parentIdx = -1;
+	}
 	if (childPtr != 0) {
 		_childIdx = READ_LE_UINT32(data);
 		_child = hierNodes + _childIdx;
 		data += 4;
-	} else
+	} else {
 		_child = NULL;
+		_childIdx = -1; 
+	}
 	if (siblingPtr != 0) {
 		_siblingIdx = READ_LE_UINT32(data);
 		_sibling = hierNodes + _siblingIdx;
 		data += 4;
-	} else
+	} else {
 		_sibling = NULL;
-	
+		_siblingIdx = -1;
+	}
 	_meshVisible = true;
 	_hierVisible = true;
 	_initialized = true;
