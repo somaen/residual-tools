@@ -24,6 +24,9 @@
 #include <string>
 #include <iostream>
 
+// Multi-way converter for 3DO-files, currently very WIP.
+// Borrows heavily from model.cpp in Residual
+
 enum outputType {
 	TEXT_3DO = 1,
 	BINARY_3DO = 2,

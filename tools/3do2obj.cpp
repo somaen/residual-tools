@@ -27,6 +27,7 @@
 #include "3do2obj.h"
 
 // Multi-way converter for 3DO-files, currently very WIP.
+// Borrows heavily from model.cpp in Residual
 
 void Vector2d::set(float x, float y) {
 	_coords[0] = x;
@@ -453,8 +454,7 @@ std::string Model::write3DOText() {
 	ss << "SECTION: GEOMETRYDEF" << std::endl;
 	ss << "RADIUS\t" << _radius << std::endl; // TODO: Set float-precision to 6 decimals, padded.
 	// TODO: Add vector2stream-operator.
-	ss << "INSERT OFFSET\t" << _insertOffset._coords[0] << "\t" << _insertOffset._coords[0] << "\t" <<
-	_insertOffset._coords[0] << "\t" << std::endl;
+	ss << "INSERT OFFSET\t" << _insertOffset.toString() << std::endl;
 	
 	ss << "GEOSETS " << _numGeosets << std::endl;
 	for(uint i = 0; i < _numGeosets; i++) {
