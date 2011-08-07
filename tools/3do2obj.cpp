@@ -26,7 +26,7 @@
 #include <common/endian.h>
 #include "3do2obj.h"
 
-
+// Multi-way converter for 3DO-files, currently very WIP.
 
 void Vector2d::set(float x, float y) {
 	_coords[0] = x;
@@ -45,7 +45,14 @@ std::string Vector2d::toString() {
 	return ss.str();
 }
 
-
+std::string Vector2d::toOBJString() {
+	std::stringstream ss;
+	ss << std::fixed;
+	ss << std::setprecision(6);
+	ss << _coords[0] << " " << _coords[1];
+	
+	return ss.str();
+}
 
 void Vector3d::set(float x, float y, float z) {
 	_coords[0] = x;
@@ -62,6 +69,15 @@ std::string Vector3d::toString() {
 	ss << std::fixed;
 	ss << std::setprecision(6);
 	ss << _coords[0] << "\t" << _coords[1] << "\t" << _coords[2];
+	
+	return ss.str();
+}
+
+std::string Vector3d::toOBJString() {
+	std::stringstream ss;
+	ss << std::fixed;
+	ss << std::setprecision(6);
+	ss << _coords[0] << " " << _coords[1] << " " << _coords[2];
 	
 	return ss.str();
 }
@@ -114,7 +130,7 @@ int MeshFace::loadBinary(const char *&data) {
 	return materialPtr;
 }
 
-std::string MeshFace::toString() {
+std::string MeshFace::to3DOString() {
 	std::stringstream ss;
 	ss << std::fixed;
 	ss << std::setprecision(4);
@@ -125,6 +141,24 @@ std::string MeshFace::toString() {
 	// TODO, this part has fixed-point comma.
 	for(uint i = 0; i < _numVertices; i++) {
 		ss << "\t" << _vertices[i] << ", " << _texVertices[i];
+	}
+	
+	return ss.str();
+}
+
+std::string MeshFace::toOBJString(uint vertOffset, uint texOffset) {
+	// TODO, actually fix all this stuff properly.
+	std::stringstream ss;
+	//ss << std::fixed;
+	//ss << std::setprecision(4);
+	// TODO: type is 4-character hex, extralight is 4-decimal float
+	//ss << _materialIndex << "\t0x";
+	//ss << std::hex << std::setw(4) << std::setfill('0') << _type << std::dec;
+	//ss << "\t" << _geo << "\t" << _light << "\t" << _tex << "\t" << _extraLight << "\t" << _numVertices;
+	// TODO, this part has fixed-point comma.
+	ss << "f";
+	for(uint i = 0; i < _numVertices; i++) {
+		ss << " " << _vertices[i]+1+vertOffset ;//<< "/" << _texVertices[i]+1 << "/" << _vertices[i]+1;
 	}
 	
 	return ss.str();
@@ -181,7 +215,46 @@ void Mesh::loadBinary(const char *&data) {
 	data += 36;
 }
 
-std::string Mesh::writeText() {
+std::string Mesh::writeOBJText(uint vertOffset, uint texOffset) {
+	std::stringstream ss;
+	ss << std::fixed;
+	ss << std::setprecision(6);
+	ss << "#NAME " << _name << std::endl;
+	ss << "#RADIUS\t" << _radius << std::endl
+	<< "#SHADOW\t" << _shadow << std::endl
+	<< "#GEOMETRYMODE\t" << _geometryMode << std::endl
+	<< "#LIGHTINGMODE\t" << _lightingMode << std::endl
+	<< "#TEXTUREMODE\t" << _textureMode << std::endl;
+	
+	ss << "#VERTICES " << _numVertices << std::endl;
+	for(uint i = 0; i < _numVertices; i++) {
+		ss << "v " << _vertices[i].toOBJString() << std::endl;
+	}
+	ss << "#TEXTURE VERTICES " << _numTextureVerts << std::endl;
+	for(uint i = 0; i < _numTextureVerts; i++) {
+		ss << "vt\t" << _textureVerts[i].toString() << std::endl;
+	}
+	ss << "#VERTEX NORMALS" << std::endl;
+	for(uint i = 0; i < _numVertices; i++) {
+		ss << "vn" << "\t" << _vertNormals[i].toString() << std::endl;
+	}
+	
+	ss << "#FACES " << _numFaces << std::endl;
+	ss << "g " << _name << std::endl;
+	for(uint i = 0; i < _numFaces; i++) {
+		ss << _faces[i].toOBJString(vertOffset,texOffset) << std::endl;
+	}
+	// TODO, fix this for OBJ
+	ss << "#FACE NORMALS" << std::endl;
+	for(uint i = 0; i < _numFaces; i++) {
+		ss << "#\t" << i << ":\t" << _faces[i]._normal.toString() << std::endl;
+	}
+	
+	return ss.str();	
+}
+
+
+std::string Mesh::write3DOText() {
 	std::stringstream ss;
 	ss << std::fixed;
 	ss << std::setprecision(6);
@@ -207,7 +280,7 @@ std::string Mesh::writeText() {
 	
 	ss << "FACES " << _numFaces << std::endl;
 	for(uint i = 0; i < _numFaces; i++) {
-		ss << "\t" << i << ":\t" << _faces[i].toString() << std::endl;
+		ss << "\t" << i << ":\t" << _faces[i].to3DOString() << std::endl;
 	}
 	
 	ss << "FACE NORMALS" << std::endl;
@@ -228,12 +301,29 @@ void Geoset::loadBinary(const char *&data) {
 		_meshes[i].loadBinary(data);
 }
 
-std::string Geoset::writeText() {
+std::string Geoset::write3DOText() {
 	std::stringstream ss;
 	ss << "MESHES " << _numMeshes << std::endl;
 	for(uint i = 0; i < _numMeshes; i++) {
 		ss << "MESH " << i << std::endl;
-		ss << _meshes[i].writeText();
+		ss << _meshes[i].write3DOText();
+	}
+	return ss.str();
+}
+
+std::string Geoset::writeOBJText() {
+	std::stringstream ss;
+	uint texOffset = 0;
+	uint vertOffset = 0;
+	ss << "#MESHES " << _numMeshes << std::endl;
+	for(uint i = 0; i < _numMeshes; i++) {
+		ss << "#MESH " << i << std::endl;
+		ss << _meshes[i].writeOBJText(vertOffset, texOffset);
+		
+		// OBJs keep a running count, while 3DOs keep a per-mesh count.
+		// This WON'T work if there are multiple geosets in a file.
+		texOffset += _meshes[i]._numTextureVerts;
+		vertOffset += _meshes[i]._numVertices;
 	}
 	return ss.str();
 }
@@ -322,8 +412,6 @@ void Model::loadBinary(const char *&data, uint length) {
 		strcpy(_materialNames[i], data);
 		data += 32;
 	}
-	// Let's adjust the data-pointer, to the offset after that block, to simplify offsets hereafter.
-	//data +=8 + _numMaterials * 32;
 	// Then follows the 3do-name
 	memcpy(_modelName, data, 32);
 	data += 36; // Skip 4 bytes after the name.
@@ -346,7 +434,7 @@ void Model::loadBinary(const char *&data, uint length) {
 
 // Savers
 
-std::string Model::writeText() {
+std::string Model::write3DOText() {
 	std::stringstream ss;
 	
 	// Header:
@@ -371,7 +459,7 @@ std::string Model::writeText() {
 	ss << "GEOSETS " << _numGeosets << std::endl;
 	for(uint i = 0; i < _numGeosets; i++) {
 		ss << "GEOSET " << i << std::endl;
-		ss << _geoSets[i].writeText();
+		ss << _geoSets[i].write3DOText();
 	}
 	
 	ss << "SECTION: HIERARCHYDEF" << std::endl;
@@ -383,28 +471,60 @@ std::string Model::writeText() {
 	return ss.str();
 }
 
-
-void ParseFile(const char *data, uint length, std::string filename) {
+std::string Model::writeOBJText() {
+	std::stringstream ss;
+	// TODO: Add materials.
+	ss << "# Materials not currently included" << std::endl;
 	
+	ss << "# Geosets" << std::endl;
+	if (_numGeosets > 1)
+		ss << "# Warning, more than 1 geoset, face-offsets will be off" << std::endl;
+	for(uint i = 0; i < _numGeosets; i++) {
+		ss << "#GEOSET " << i << std::endl;
+		ss << _geoSets[i].writeOBJText();
+	} 
+	
+	return ss.str();
+}
+
+
+Model *ParseFile(const char *data, uint length, std::string filename) {
+	if(data[0] == '#') {
+		std::cout << "Text-loading not implemented";
+		assert(0);
+	}
 	uint id;
 	//char *materialNames = new char[numMaterials][32];
 	id = READ_LE_UINT32(data);
 	//file.read((char *)&id, 4);
 	assert(id=='MODL');
 	
-	Model m;
-	m.loadBinary(data,length);
-	std::cout << m.writeText();
+	Model *m = new Model();
+	m->loadBinary(data,length);
+	return m;
 }	
+
+std::string PrintAsOBJ() {
+	std::stringstream ss;
+	
+	return ss.str();
+}
 
 int main(int argc, char **argv) {
 	std::string filename=argv[1];
+	outputType outType;
 	
 	std::fstream file(argv[1], std::fstream::in|std::fstream::binary);
 	if (!file.is_open()) {
 		std::cout << "Could not open file" << std::endl;
 		return 0;
 	}
+	// TODO: Make this select based on the input-data, or the parameter, properly.
+	if (argc == 2)
+		outType = TEXT_3DO;
+	else if (argc == 3)
+		outType = WAVEFORM_OBJ;
+	
 	std::string outname = argv[1];
 	outname += ".parsed";
 	
@@ -415,7 +535,10 @@ int main(int argc, char **argv) {
 	file.read(data, end);
 	file.close();
 	
-	ParseFile(data, end, outname);
-	
+	Model *m = ParseFile(data, end, outname);
+	if (outType == TEXT_3DO)
+		std::cout << m->write3DOText();
+	else if (outType == WAVEFORM_OBJ)
+		std::cout << m->writeOBJText();
 	return 0;
 }

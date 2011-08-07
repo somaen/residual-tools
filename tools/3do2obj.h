@@ -24,12 +24,19 @@
 #include <string>
 #include <iostream>
 
+enum outputType {
+	TEXT_3DO = 1,
+	BINARY_3DO = 2,
+	WAVEFORM_OBJ = 3
+};
+
 struct Vector2d {
 	float _coords[2];
 	void set(float x, float y);
 	Vector2d(float x=0.0f, float y=0.0f);
 	// TODO: Proper operator
 	std::string toString();
+	std::string toOBJString();
 };
 
 struct Vector3d {
@@ -38,6 +45,7 @@ struct Vector3d {
 	Vector3d(float x=0.0f, float y=0.0f, float z=0.0f);
 	// TODO: Proper operator
 	std::string toString();
+	std::string toOBJString();
 };
 
 
@@ -51,8 +59,8 @@ struct MeshFace
 	int *_vertices, *_texVertices;
 	Vector3d _normal;
 	int loadBinary(const char *&data);	
-	std::string toString();
-	
+	std::string to3DOString();
+	std::string toOBJString(uint, uint);	
 };
 
 struct Mesh
@@ -69,7 +77,8 @@ struct Mesh
 	uint *_materialID;
 	// This should be where the magic actually happens.
 	void loadBinary(const char *&data);	
-	std::string writeText();
+	std::string write3DOText();
+	std::string writeOBJText(uint, uint);
 };
 
 class Geoset
@@ -78,7 +87,8 @@ public:
 	uint _numMeshes;
 	Mesh *_meshes;
 	void loadBinary(const char *&data);
-	std::string writeText();
+	std::string write3DOText();
+	std::string writeOBJText();
 };
 
 struct ModelNode {
@@ -115,12 +125,12 @@ public:
 	
 	// Loaders
 	void loadText();
-	
 	void loadBinary(const char *&data, uint length);
 		
 	// Savers
 	
-	std::string writeText();
+	std::string write3DOText();
+	std::string writeOBJText();
 };
 
 
