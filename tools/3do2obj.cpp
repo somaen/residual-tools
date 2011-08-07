@@ -137,7 +137,7 @@ std::string MeshFace::to3DOString() {
 	ss << std::setprecision(4);
 	// TODO: type is 4-character hex, extralight is 4-decimal float
 	ss << _materialIndex << "\t0x";
-	ss << std::hex << std::setw(4) << std::setfill('0') << _type << std::dec;
+	ss << std::hex << std::setw(4) << std::setfill('0') << _type-1 << std::dec;
 	ss << "\t" << _geo << "\t" << _light << "\t" << _tex << "\t" << _extraLight << "\t" << _numVertices;
 	// TODO, this part has fixed-point comma.
 	for(uint i = 0; i < _numVertices; i++) {
