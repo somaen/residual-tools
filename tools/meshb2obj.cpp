@@ -43,6 +43,7 @@ int main(int argc, char **argv) {
 	
 	char* readString = new char[64];
 	file.read(readString, strLength);
+	// Unknown vector3d
 	
 	// Then a list of textures 48 bytes later
 	int numTextures = 0;
@@ -68,40 +69,54 @@ int main(int argc, char **argv) {
 	
 	// Should create an empty mtl
 	std::cout << "mtllib quit.mtl" << std::endl << "o Arrow" << std::endl;
-	// Vertices
-	//	file.seekg(283);
+
 	int numVertices;
 	file.read((char*)&numVertices, 4);
 	std::cout << "#File has " << numVertices << " Vertices" << std::endl;
 	
-	//file.seekg(287);
 	float x = 0, y = 0, z = 0;
 	
+	// Vertices
 	for (int i = 0; i < numVertices; ++i) {
 		file.read((char *)&x, 4);
 		file.read((char *)&y, 4);
 		file.read((char *)&z, 4);
 		std::cout << "v " << x << " " << y << " " << z << std::endl;
 	}
-// Vertice-normals?
+	// Vertex-normals
 	for (int i = 0; i < numVertices; ++i) {
 		file.read((char *)&x, 4);
 		file.read((char *)&y, 4);
 		file.read((char *)&z, 4);
 		std::cout << "vn " << x << " " << y << " " << z << std::endl;
 	}
-	file.seekg(numVertices * 12, ios::cur);
-	// Actually, this file has 6*4*numVertices floats in this block.
+	// Color map-data, dunno how to interpret them right now.
+	file.seekg(numVertices * 4, ios::cur);
+	for (int i = 0; i < numVertices; ++i) {
+		file.read((char *)&x, 4);
+		file.read((char *)&y, 4);
+		std::cout << "vt " << x << " " << y << " " << z << std::endl;
+	}
+	
 	std::cout << "usemtl (null)"<< std::endl;
-	// And then another block of unknowns
+	
 	// Faces
 	// The head of this section needs quite a bit of rechecking
 	int numFaces = 0;
+	int hasTexture = 0;
+	int texID = 0;
+	int flags = 0;
 	file.read((char *) &numFaces, 4);
-	file.seekg(8, ios::cur);
+	//file.seekg(8, ios::cur);
 	int faceLength = 0;
 	for(int j = 0;j < numFaces; j++){
+		file.read((char*)&flags, 4);
+		file.read((char*)&hasTexture, 4);
+		if(hasTexture)
+			file.read((char*)&texID, 4);
 		file.read((char*)&faceLength, 4);
+		std::cout << "#Face-header: flags: " << flags << " hasTexture: " << hasTexture
+			<< " texId: " << texID << " faceLength: " << faceLength << std::endl;
 		short x = 0, y = 0, z = 0;
 		cout << "g " << j << endl;
 		for (int i = 0; i < faceLength; i += 3) {
@@ -113,7 +128,32 @@ int main(int argc, char **argv) {
 			++z;
 			std::cout << "f " << x << "//" << x << " " << y << "//" << y << " " << z << "//" << z <<  std::endl;
 		}
-		// 12 bytes of unknown
-		file.seekg(12, ios::cur);
+	}
+	int hasBones = 0;
+	file.read((char*)&hasBones, 4);
+	
+	if (hasBones == 1) {
+		int numBones = 0;
+		file.read((char*)&numBones, 4);
+		char **boneNames = new char*[numBones];
+		for(int i = 0;i < numBones; i++) {
+			file.read((char*)&strLength, 4);
+			boneNames[i] = new char[strLength];
+			file.read(boneNames[i], strLength);
+			std::cout << "# BoneName " << boneNames[i] << std::endl;
+		}
+		
+		int numBoneData = 0;
+		int unknownVal = 0;
+		int boneDatanum;
+		float boneDataWgt;
+		file.read((char*)&numBoneData, 4);
+		for(int i = 0;i < numBoneData; i++) {
+			file.read((char*)&unknownVal, 4);
+			file.read((char*)&boneDatanum, 4);
+			file.read((char*)&boneDataWgt, 4);		
+			std::cout << "# BoneData: Unknown: " << unknownVal << " boneNum: "
+				<< boneDatanum << " weight: " << boneDataWgt << std::endl;
+		}
 	}
 }
