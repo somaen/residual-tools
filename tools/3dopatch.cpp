@@ -78,7 +78,8 @@ void parse3DO(char *data, int length, float texFactor) {
 			}
 			for (int i = 0; i < numTextureVerts; i++) {
 				textureVert = get_vector2d(data);
-				textureVert = textureVert * texFactor;
+				textureVert._coords[0] = textureVert._coords[0] * texFactor;
+				textureVert._coords[1] = textureVert._coords[1] * texFactor;
 				memcpy(data, &textureVert._coords[0], 4);
 				memcpy(data + 4, &textureVert._coords[1], 4);
 				data += 8;
