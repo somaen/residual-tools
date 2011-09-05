@@ -279,6 +279,8 @@ int main(int argc, char **argv) {
 	} else {
 		file = new std::fstream(argv[1], std::fstream::in|std::fstream::binary);
 		int offset = getLabOffset(argv[1], argv[2], length);
+		if (offset == -1)
+			return;
 		file->seekg(offset, std::ios::beg);
 		char *data = new char[length];
 		file->read(data, length);
