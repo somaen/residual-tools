@@ -39,6 +39,24 @@
 #include <sys/types.h>
 
 #include "tools/patchex/mspack.h"
+#include "tools/patchex/cab.h"
+
+
+// Some useful type and function
+typedef unsigned char byte;
+typedef unsigned char uint8;
+typedef unsigned short uint16;
+typedef unsigned int uint32;
+typedef signed char int8;
+typedef signed short int16;
+typedef signed int int32;
+/*
+uint32 READ_LE_UINT32(const void *ptr) {
+	const uint8 *b = (const uint8 *)ptr;
+	return (b[3] << 24) + (b[2] << 16) + (b[1] << 8) + (b[0]);
+}*/
+
+namespace Patchex {
 
 // Command line actions
 enum act { UNKNOWN_ACTION, CABINET_ACTION, LOCALISED_ACTION};
@@ -46,6 +64,7 @@ enum act { UNKNOWN_ACTION, CABINET_ACTION, LOCALISED_ACTION};
 // Languages codes
 #define LANG_ALL1 "@@"
 #define LANG_ALL2 "Common"
+
 const char *kLanguages_ext[] = { "English", "French", "German", "Italian", "Portuguese", "Spanish", NULL};
 const char *kLanguages_code1[] = { "US", "FR", "GE", "IT", "PT", "SP",  NULL };
 const char *kLanguages_code2[] = { "Eng", "Fra", "Deu", "Ita", "Brz", "Esp",  NULL };
@@ -57,271 +76,16 @@ const char *kLanguages_code2[] = { "Eng", "Fra", "Deu", "Ita", "Brz", "Esp",  NU
 #define CONTAINER_MAGIC		"1CNT"
 #define CABINET_MAGIC			"MSCF"
 
-#define BUFFER_SIZE 		102400
-unsigned int lang;
 
-// Some useful type and function
-typedef unsigned char byte;
-typedef unsigned char uint8;
-typedef unsigned short uint16;
-typedef unsigned int uint32;
-typedef signed char int8;
-typedef signed short int16;
-typedef signed int int32;
-
-uint32 READ_LE_UINT32(const void *ptr) {
-	const uint8 *b = (const uint8 *)ptr;
-	return (b[3] << 24) + (b[2] << 16) + (b[1] << 8) + (b[0]);
 }
 
-struct mspack_file_p {
-	FILE *fh;
-	const char *name;
-	uint16 *CodeTable;
-	off_t cabinet_offset;
-};
-
-uint16 *create_dec_table(uint32 key) {
-	uint32 value;
-	uint16 *dectable;
-	unsigned int i;
-
-	value = key;
-	dectable = (uint16 *)malloc(CODE_TABLE_SIZE * 2);
-
-	for (i = 0; i < CODE_TABLE_SIZE; i++) {
-		value = RAND_A * value + RAND_B;
-		dectable[i] = (uint16)((value >> 16) & 0x7FFF);
-	}
-
-	return dectable;
-}
-
-static struct mspack_file *res_open(struct mspack_system *handle, const char *filename, int mode) {
-	struct mspack_file_p *fh;
-	const char *fmode;
-	uint32 magic, key;
-	uint8 count;
+using namespace Patchex;
 	
-	switch (mode) {
-		case MSPACK_SYS_OPEN_READ:   fmode = "rb";  break;
-		case MSPACK_SYS_OPEN_WRITE:  fmode = "wb";  break;
-		case MSPACK_SYS_OPEN_UPDATE: fmode = "r+b"; break;
-		case MSPACK_SYS_OPEN_APPEND: fmode = "ab";  break;
-		default: return NULL;
-	}
-	
-	fh = (mspack_file_p *)malloc(sizeof(struct mspack_file_p));
-
-	fh->name = filename;
-	if (!(fh->fh = fopen(filename, fmode))) {
-		free(fh);
-		return NULL;
-	}
-	
-	fh->CodeTable = NULL;
-	
-	if (mode != MSPACK_SYS_OPEN_READ)
-		return (struct mspack_file *)fh;
-
-	//Search for data
-	while(!feof(fh->fh)) {
-		//Check for content signature
-		count = handle->read((struct mspack_file *) fh, &magic, 4);
-		if (count == 4 && memcmp(&magic, CONTAINER_MAGIC, 4) == 0) {
-			handle->read((struct mspack_file *)fh, &key, 4);
-			key = READ_LE_UINT32(&key);
-			fh->CodeTable = create_dec_table(key);
-			fh->cabinet_offset = ftell(fh->fh);
-
-			//Check for cabinet signature
-			count = handle->read((struct mspack_file *) fh, &magic, 4);
-			if (count == 4 && memcmp(&magic, CABINET_MAGIC, 4) == 0) {
-				break;
-			} else {
-				free(fh->CodeTable);
-				fh->CodeTable = NULL;
-				continue;
-			}
-		}
-	}
-
-	handle->seek((struct mspack_file *)fh, (off_t) 0, MSPACK_SYS_SEEK_START);
-
-	return (struct mspack_file *)fh;
-}
-
-static void res_close(struct mspack_file *file) {
-	struct mspack_file_p *handle = (struct mspack_file_p *)file;
-
-	if (handle) {
-		if (handle->CodeTable)
-			free(handle->CodeTable);
-		fclose(handle->fh);
-		free(handle);
-	}
-}
-
-static int res_seek(struct mspack_file *file, off_t offset, int mode) {
-	struct mspack_file_p *handle = (struct mspack_file_p *)file;
-
-	if (handle) {
-		switch (mode) {
-		case MSPACK_SYS_SEEK_START:
-			mode = SEEK_SET;
-			if (handle->CodeTable)
-				offset += handle->cabinet_offset;
-			break;
-		case MSPACK_SYS_SEEK_CUR:   mode = SEEK_CUR; break;
-		case MSPACK_SYS_SEEK_END:   mode = SEEK_END; break;
-		default: return -1;
-		}
-		return fseek(handle->fh, (int)offset, mode);
-	}
-	return -1;
-}
-
-static off_t res_tell(struct mspack_file *file) {
-	struct mspack_file_p *handle = (struct mspack_file_p *)file;
-
-	if (handle) {
-		off_t offset = ftell(handle->fh);
-		if (handle->CodeTable)
-			offset -= handle->cabinet_offset;
-		return offset;
-	} else
-		return 0;
-}
-
-void decode(uint8 *data, unsigned int size, uint16 *dectable, unsigned int start_point) {
-	unsigned int i;
-	for (i = 0; i < size; i++)
-		data[i] = (data[i] ^ (uint8) dectable[(i + start_point) % CODE_TABLE_SIZE]) - (uint8)(dectable[(i + start_point) % CODE_TABLE_SIZE] >> 8);
-}
-
-static int res_read(struct mspack_file *file, void *buffer, int bytes) {
-	struct mspack_file_p *handle = (struct mspack_file_p *)file;
-
-	if (handle) {
-		unsigned int start_point = (unsigned int)res_tell(file);
-		size_t count = fread(buffer, 1, (size_t) bytes, handle->fh);
-
-		if (!ferror(handle->fh)) {
-			if (handle->CodeTable)
-				decode((uint8*)buffer, count, handle->CodeTable, start_point);
-			return (int) count;
-		}
-	}
-	return -1;
-}
-
-static int res_write(struct mspack_file *file, void *buffer, int bytes) {
-	struct mspack_file_p *handle = (struct mspack_file_p *)file;
-
-	if (handle) {
-		if (handle->CodeTable)
-			return -1;
-		size_t count = fwrite(buffer, 1, (size_t)bytes, handle->fh);
-		if (!ferror(handle->fh)) return (int) count;
-	}
-	return -1;
-}
-
-static struct mspack_system res_system = {
-	&res_open, &res_close, &res_read,  &res_write, &res_seek,
-	&res_tell, NULL
-};
-
-void extract_cabinet(char *filename, unsigned int lenght) {
-	struct mspack_file *original_executable, *destination_cabinet;
-	void *buffer;
-	unsigned int copied_bytes;
-	int count;
-
-	original_executable = res_open(&res_system, filename, MSPACK_SYS_OPEN_READ);
-	destination_cabinet = res_open(&res_system, "original.cab", MSPACK_SYS_OPEN_WRITE);
-	
-	buffer = malloc(BUFFER_SIZE);
-	copied_bytes = 0;
-
-	while (copied_bytes < lenght) {
-		count = res_read(original_executable, buffer, BUFFER_SIZE);
-		res_write(destination_cabinet, buffer, count);
-		copied_bytes  += count;
-	}
-	printf("Update cabinet extracted as original.cab.\n");
-
-	free(buffer);
-	res_close(original_executable);
-	res_close(destination_cabinet);
-}
-
-char *file_filter(const struct mscabd_file *file) {
-	char *filename;
-	unsigned int filename_size;
-
-	filename_size = strlen(file->filename);
-
-	//Skip executables and libries
-	char *ext = file->filename + (filename_size - 3);
-	if (strcasecmp(ext, "exe") == 0 ||
-		  strcasecmp(ext, "dll") == 0 ||
-		  strcasecmp(ext, "flt") == 0 ||
-		  strcasecmp(ext, "asi") == 0) {
-		return NULL;
-	}
-
-	filename = (char *)malloc(filename_size + 1);
-
-	//Old-style localization (Grimfandango)
-	if (filename_size > 3 &&  file->filename[2] == '_') {
-		char file_lang[3];
-		sscanf(file->filename, "%2s_%s",file_lang, filename);
-		if (strcmp(file_lang, kLanguages_code1[lang]) == 0 || strcmp(file_lang, LANG_ALL1) == 0)
-			return filename;
-	}
-
-	//Folder-style localization (EMI)
-	unsigned int lcode_size_com, lcode_size_loc;
-	lcode_size_com = strlen(LANG_ALL2);
-	lcode_size_loc = strlen(kLanguages_code2[lang]);
-	if ((filename_size > lcode_size_com && strncmp(file->filename, LANG_ALL2, lcode_size_com - 1) == 0) ||
-	    (filename_size > lcode_size_loc && strncmp(file->filename, kLanguages_code2[lang], lcode_size_loc) == 0) ) {
-		char *fn = rindex(file->filename, '\\') + 1;
-		if (fn != NULL) {
-			strcpy(filename, fn);
-			return filename;
-		}
-	}
-
-	free(filename);
-	return NULL;
-}
-
-void extract_files(struct mscab_decompressor *cabd, struct mscabd_cabinet *cab) {
-	unsigned int files_extracted = 0;
-	struct mscabd_file *file;
-	char *filename;
-
-	for (file = cab->files; file; file = file->next) {
-		if ((filename = file_filter(file))) {
-			if (cabd->extract(cabd, file, filename) != MSPACK_ERR_OK) {
-				printf("Extract error on %s!\n", file->filename);
-				continue;
-			}
-			printf("%s extracted as %s\n", file->filename, filename);
-			++files_extracted;
-			free(filename);
-		}
-	}
-
-	printf("%d file(s) extracted.\n", files_extracted);
-}
-
 int main(int argc, char *argv[]) {
-	struct mscab_decompressor *cabd;
-	struct mscabd_cabinet *cab;
+	//mscab_decompressor *cabd;
+	//struct mscabd_cabinet *cab;
 	int i;
+	unsigned int lang;
 	enum act action;
 	char *(*filter) (struct mscabd_file *);
 
@@ -361,22 +125,29 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
+	res_system *sys = new res_system();
 
 	// Extraction !
-	if ((cabd = mspack_create_cab_decompressor(&res_system)) != MSPACK_ERR_OK) {
-		if ((cab = cabd->open(cabd, argv[1])) != MSPACK_ERR_OK) {
+	CabFile cabd(argv[1]);
+	cabd.SetLanguage(lang);
+	//if ((cabd = mspack_create_cab_decompressor()) != MSPACK_ERR_OK) {
+		//cabd->open(argv[1]);
+		//cabd->printFiles();
+		//if (cabd->last_error() == MSPACK_ERR_OK) {
 			if (action == CABINET_ACTION)
-				extract_cabinet(argv[1], cab->length);
+				cabd.ExtractCabinet();
 			else if (action == LOCALISED_ACTION)
-				extract_files(cabd, cab);
-			cabd->close(cabd, cab);
-		} else
+				cabd.ExtractFiles();
+			cabd.Close();
+		/*} else
 			printf("Unable to open %s!\n", argv[1]);
-		mspack_destroy_cab_decompressor(cabd);
-	} else {
+		delete cabd;*/
+	/*} else {
 		printf("Internal error!\n");
 		exit(1);
-	}
+	}*/
+	
+	delete sys;
 
 	return 0;
 }

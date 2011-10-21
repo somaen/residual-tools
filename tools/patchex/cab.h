@@ -3,12 +3,12 @@
  * Residual is the legal property of its developers, whose names
  * are too numerous to list here. Please refer to the AUTHORS
  * file distributed with this source distribution.
-
+ 
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
-
+ 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
@@ -32,6 +32,7 @@
 #ifndef MSPACK_CAB_H
 #define MSPACK_CAB_H
 
+#include <string>
 #include "tools/patchex/mszip.h"
 
 #define cfhead_Signature         (0x00)
@@ -78,47 +79,111 @@
 #define CAB_BLOCKMAX (32768)
 #define CAB_INPUTMAX (CAB_BLOCKMAX+6144)
 
-struct mscabd_decompress_state {
-  struct mscabd_folder_p *folder;
-  struct mscabd_folder_data *data;
-  unsigned int offset;
-  unsigned int block;
-  struct mspack_system sys;
-  int comp_type;
-  int (*decompress)(void *, off_t);
-  void *state;
-  struct mscabd_cabinet_p *incab;
-  struct mspack_file *infh;
-  struct mspack_file *outfh;
-  unsigned char *i_ptr, *i_end;
-  unsigned char input[CAB_INPUTMAX];
+struct mspack_system;
+struct mszipd_stream;
+struct mscabd_folder;
+struct mscabd_folder_data;
+class mscabd_decompress_state;
+
+class dec_system : public res_system {
+	int read_block(mscabd_decompress_state *d, int *out, int ignore_cksum);
+public:
+	int read(struct mspack_file *file, void *buffer, int bytes);
+	int write(struct mspack_file *file, void *buffer, int bytes);
+
 };
 
-struct mscab_decompressor_p {
-  struct mscab_decompressor base;
-  struct mscabd_decompress_state *d;
-  struct mspack_system *system;
-  int param[3];
-  int error;
+class mscabd_decompress_state {
+public:
+	mscabd_decompress_state();
+	~mscabd_decompress_state();
+	int init(mspack_file * fh, unsigned int ct);
+	mscabd_folder *folder;
+	mscabd_folder_data *data;
+	unsigned int offset;
+	unsigned int block;
+	int comp_type;
+	int decompress(off_t offset) { return ZipDecompress(offset); }
+	int ZipDecompress(off_t offset);
+	mszipd_stream *state;
+	struct mscabd_cabinet *incab;
+	struct mspack_file *infh;
+	struct mspack_file *outfh;
+	unsigned char *i_ptr, *i_end;
+	unsigned char input[CAB_INPUTMAX];
+private:
+	struct mspack_file *initfh;
+	dec_system sys;
 };
 
-struct mscabd_cabinet_p {
-  struct mscabd_cabinet base;
-  off_t blocks_off;
-  int block_resv;
+char *file_filter(const struct mscabd_file *file);
+
+struct mscabd_cabinet {
+	mscabd_cabinet(std::string fname);
+	int read_headers(off_t offset, int quiet);
+	std::string read_string(int *error);
+	std::string GetFilename() { return filename; }
+	mscabd_cabinet *next;
+	
+	off_t base_offset;
+	unsigned int length;
+	mscabd_cabinet *prevcab;
+	mscabd_cabinet *nextcab;
+	std::string prevname, nextname, previnfo, nextinfo;
+	struct mscabd_file *files;
+	struct mscabd_folder *folders;
+	unsigned short set_id;
+	unsigned short set_index;
+	unsigned short header_resv;
+	int flags;
+	off_t blocks_off;
+	int block_resv;
+private:
+	std::string filename;
+	mspack_file *_fh;
+};
+
+struct mscab_decompressor {
+	mscab_decompressor();
+	~mscab_decompressor();
+	void open(std::string filename);
+	void close();
+	void printFiles();
+	void extract_files();
+	
+	int extract(struct mscabd_file *file, std::string filename);
+	int last_error();
+	
+	unsigned int getCabLength() { return _cab->length; }
+//private:
+	
+	
+	struct mscabd_decompress_state *d;
+//	int param[3];
+	int error;
+	unsigned int lang;
+private:
+	int init_decomp(unsigned int ct);
+	void free_decomp();
+	mscabd_cabinet *_cab;
+	std::string read_string(mspack_file *fh, mscabd_cabinet *, int *error);
+	std::string file_filter(const struct mscabd_file *file);
 };
 
 struct mscabd_folder_data {
-  struct mscabd_folder_data *next;
-  struct mscabd_cabinet_p *cab;
-  off_t offset;
+	mscabd_folder_data *next;
+	mscabd_cabinet *cab;
+	off_t offset;
 };
 
-struct mscabd_folder_p {
-  struct mscabd_folder base;
-  struct mscabd_folder_data data;
-  struct mscabd_file *merge_prev;
-  struct mscabd_file *merge_next;
+struct mscabd_folder {
+	struct mscabd_folder *next;
+	int comp_type;
+	unsigned int num_blocks;
+	
+	mscabd_folder_data data;
+	struct mscabd_file *merge_prev;
+	struct mscabd_file *merge_next;
 };
 
 #endif

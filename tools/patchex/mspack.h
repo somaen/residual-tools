@@ -3,12 +3,12 @@
  * Residual is the legal property of its developers, whose names
  * are too numerous to list here. Please refer to the AUTHORS
  * file distributed with this source distribution.
-
+ 
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
-
+ 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
@@ -40,26 +40,33 @@
 #define LIB_MSPACK_H
 
 #include <sys/types.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <string>
 
-struct mspack_system {
-  struct mspack_file * (*open)(struct mspack_system *self,
-			       const char *filename,
-			       int mode);
-  void (*close)(struct mspack_file *file);
-  int (*read)(struct mspack_file *file,
-	      void *buffer,
-	      int bytes);
-  int (*write)(struct mspack_file *file,
-	       void *buffer,
-	       int bytes);
-  int (*seek)(struct mspack_file *file,
-	      off_t offset,
-	      int mode);
-  off_t (*tell)(struct mspack_file *file);
-  void *null_ptr;
+struct mspack_file;
+
+class mspack_system {
+public:
+	virtual mspack_file *open(std::string filename, int mode) = 0;
+	virtual void close(mspack_file *file) = 0;
+	virtual int read(mspack_file *file, void *buffer, int bytes) = 0;
+	virtual int write(mspack_file *file, void *buffer, int bytes) = 0;
+	virtual int seek(mspack_file *file, off_t offset, int mode) = 0;
+	virtual off_t tell(mspack_file *file) = 0;
+	void *null_ptr;
+};
+
+class res_system : public mspack_system {
+public:
+	mspack_file *open(std::string filename, int mode);
+	void close(struct mspack_file *file);
+	int read(struct mspack_file *file, void *buffer, int bytes);
+	int write(struct mspack_file *file, void *buffer, int bytes);
+	int seek(struct mspack_file *file, off_t offset, int mode);
+	off_t tell(struct mspack_file *file);
+	void *null_ptr;
 };
 
 #define MSPACK_SYS_OPEN_READ   (0)
@@ -71,9 +78,7 @@ struct mspack_system {
 #define MSPACK_SYS_SEEK_CUR    (1)
 #define MSPACK_SYS_SEEK_END    (2)
 
-struct mspack_file {
-  int dummy;
-};
+struct mspack_file;
 
 #define MSPACK_ERR_OK          (0)
 #define MSPACK_ERR_ARGS        (1)
@@ -88,80 +93,36 @@ struct mspack_file {
 #define MSPACK_ERR_CRUNCH      (10)
 #define MSPACK_ERR_DECRUNCH    (11)
 
-extern struct mscab_decompressor *
-  mspack_create_cab_decompressor(struct mspack_system *sys);
-
-extern void mspack_destroy_cab_decompressor(struct mscab_decompressor *self);
-
-struct mscabd_cabinet {
-  struct mscabd_cabinet *next;
-  char *filename;
-  off_t base_offset;
-  unsigned int length;
-  struct mscabd_cabinet *prevcab;
-  struct mscabd_cabinet *nextcab;
-  char *prevname;
-  char *nextname;
-  char *previnfo;
-  char *nextinfo;
-  struct mscabd_file *files;
-  struct mscabd_folder *folders;
-  unsigned short set_id;
-  unsigned short set_index;
-  unsigned short header_resv;
-  int flags;
-};
-
-#define MSCAB_HDR_RESV_OFFSET (0x28)
-#define MSCAB_HDR_PREVCAB (0x01)
-#define MSCAB_HDR_NEXTCAB (0x02)
-#define MSCAB_HDR_RESV    (0x04)
-
-struct mscabd_folder {
-  struct mscabd_folder *next;
-  int comp_type;
-  unsigned int num_blocks;
-};
-
-#define MSCABD_COMP_METHOD(comp_type) ((comp_type) & 0x0F)
-#define MSCABD_COMP_LEVEL(comp_type) (((comp_type) >> 8) & 0x1F)
-#define MSCAB_COMP_MSZIP      (1)
+extern struct mscab_decompressor *mspack_create_cab_decompressor();
 
 struct mscabd_file {
-  struct mscabd_file *next;
-  char *filename;
-  unsigned int length;
-  int attribs;
-  char time_h;
-  char time_m;
-  char time_s;
-  char date_d;
-  char date_m;
-  int date_y;
-  struct mscabd_folder *folder;
-  unsigned int offset;
+	mscabd_file *next;
+	std::string filename;
+	unsigned int length;
+	int attribs;
+	char time_h;
+	char time_m;
+	char time_s;
+	char date_d;
+	char date_m;
+	int date_y;
+	struct mscabd_folder *folder;
+	unsigned int offset;
 };
 
-#define MSCAB_ATTRIB_RDONLY   (0x01)
-#define MSCAB_ATTRIB_HIDDEN   (0x02)
-#define MSCAB_ATTRIB_SYSTEM   (0x04)
-#define MSCAB_ATTRIB_ARCH     (0x20)
-#define MSCAB_ATTRIB_EXEC     (0x40)
-#define MSCAB_ATTRIB_UTF_NAME (0x80)
-
-#define MSCABD_PARAM_SEARCHBUF (0)
-#define MSCABD_PARAM_FIXMSZIP  (1)
-#define MSCABD_PARAM_DECOMPBUF (2)
-
-struct mscab_decompressor {
-  struct mscabd_cabinet * (*open) (struct mscab_decompressor *self,
-				   char *filename);
-  void (*close)(struct mscab_decompressor *self,
-		struct mscabd_cabinet *cab);
-  int (*extract)(struct mscab_decompressor *self,
-		 struct mscabd_file *file,
-		 char *filename);
-  int (*last_error)(struct mscab_decompressor *self);
+class CabFile {
+	mscab_decompressor *_cabd;
+	mscabd_file *_files;
+	std::string _filename;
+	unsigned int _lang;
+	void OpenCAB(std::string filename);
+public:
+	CabFile(std::string filename);
+	~CabFile();
+	void Close();
+	void SetLanguage(unsigned int);
+	void ExtractCabinet();
+	void ExtractFiles();
 };
 
 #endif
