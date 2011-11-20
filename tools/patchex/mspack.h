@@ -45,40 +45,16 @@
 #include <cstring>
 #include <string>
 
-struct mspack_file;
+//struct mspack_file;
+class mscabd_decompress_state;
 
-class mspack_system {
+class dec_system {
+	int read_block(mscabd_decompress_state *d, int *out, int ignore_cksum);
 public:
-	virtual mspack_file *open(std::string filename, int mode) = 0;
-	virtual void close(mspack_file *file) = 0;
-	virtual int read(mspack_file *file, void *buffer, int bytes) = 0;
-	virtual int write(mspack_file *file, void *buffer, int bytes) = 0;
-	virtual int seek(mspack_file *file, off_t offset, int mode) = 0;
-	virtual off_t tell(mspack_file *file) = 0;
-	void *null_ptr;
+	int read(struct PackFile *file, void *buffer, int bytes);
+	int write(struct PackFile *file, void *buffer, int bytes);
 };
 
-class res_system : public mspack_system {
-public:
-	mspack_file *open(std::string filename, int mode);
-	void close(struct mspack_file *file);
-	int read(struct mspack_file *file, void *buffer, int bytes);
-	int write(struct mspack_file *file, void *buffer, int bytes);
-	int seek(struct mspack_file *file, off_t offset, int mode);
-	off_t tell(struct mspack_file *file);
-	void *null_ptr;
-};
-
-#define MSPACK_SYS_OPEN_READ   (0)
-#define MSPACK_SYS_OPEN_WRITE  (1)
-#define MSPACK_SYS_OPEN_UPDATE (2)
-#define MSPACK_SYS_OPEN_APPEND (3)
-
-#define MSPACK_SYS_SEEK_START  (0)
-#define MSPACK_SYS_SEEK_CUR    (1)
-#define MSPACK_SYS_SEEK_END    (2)
-
-struct mspack_file;
 
 #define MSPACK_ERR_OK          (0)
 #define MSPACK_ERR_ARGS        (1)
@@ -93,7 +69,10 @@ struct mspack_file;
 #define MSPACK_ERR_CRUNCH      (10)
 #define MSPACK_ERR_DECRUNCH    (11)
 
-extern struct mscab_decompressor *mspack_create_cab_decompressor();
+//extern struct mscab_decompressor *mspack_create_cab_decompressor();
+
+struct mscab_decompressor;
+struct mscabd_folder;
 
 struct mscabd_file {
 	mscabd_file *next;
@@ -106,7 +85,7 @@ struct mscabd_file {
 	char date_d;
 	char date_m;
 	int date_y;
-	struct mscabd_folder *folder;
+	mscabd_folder *folder;
 	unsigned int offset;
 };
 

@@ -31,48 +31,15 @@
 
 
 #include <cassert>
+#include "common/scummsys.h"
 #include "tools/patchex/cab.h"
+#include "tools/patchex/packfile.h"
 
 // Some useful type and function
-typedef unsigned char byte;
-typedef unsigned char uint8;
-typedef unsigned short uint16;
-typedef unsigned int uint32;
-typedef signed char int8;
-typedef signed short int16;
-typedef signed int int32;
-
-// Extraction constans
-#define RAND_A			(0x343FD)
-#define RAND_B			(0x269EC3)
-#define CODE_TABLE_SIZE		(0x100)
-#define CONTAINER_MAGIC		"1CNT"
-#define CABINET_MAGIC			"MSCF"
-
-uint32 READ_LE_UINT32(const void *ptr) {
-	const uint8 *b = (const uint8 *)ptr;
-	return (b[3] << 24) + (b[2] << 16) + (b[1] << 8) + (b[0]);
-}
-
-class mspack_file {
-	FILE *fh;
-	std::string name;
-	uint16 *CodeTable;
-	off_t cabinet_offset;
-	
-	bool inited;
-public:
-	mspack_file(std::string filename, int mode);
-	~mspack_file() { close(); }
-	void close();
-	int read(void *buffer, int bytes);
-	int write(void *buffer, int bytes);
-	int seek(off_t offset, int mode);
-	off_t tell();
-};
+//typedef unsigned char byte;
 
 mscabd_cabinet::mscabd_cabinet(std::string fname) : filename(fname) {
-	_fh = new mspack_file(filename, MSPACK_SYS_OPEN_READ);
+	_fh = new PackFile(filename, PackFile::OPEN_READ);
 }
 
 static int cabd_sys_read_block(struct mspack_system *sys, struct mscabd_decompress_state *d, int *out, int ignore_cksum);
@@ -109,10 +76,6 @@ mscab_decompressor::~mscab_decompressor() {
 	}
 }
 
-mscab_decompressor *mspack_create_cab_decompressor() {
-	return new mscab_decompressor();
-}
-
 void mscab_decompressor::free_decomp() {
 	if (d && d->folder && d->state) {
 		switch (d->comp_type & cffoldCOMPTYPE_MASK) {
@@ -124,7 +87,7 @@ void mscab_decompressor::free_decomp() {
 
 void mscab_decompressor::open(std::string filename)
 {
-	struct mspack_file *fh;
+	struct PackFile *fh;
 
 	if (_cab)
 		close();
@@ -208,8 +171,7 @@ int mscabd_cabinet::read_headers(off_t offset, int quiet)
 	
 	this->base_offset = offset;
 	
-	//	if (_system->seek(_fh, offset, MSPACK_SYS_SEEK_START)) {
-	if (_fh->seek(offset, MSPACK_SYS_SEEK_START)) {	
+	if (_fh->seek(offset, PackFile::SEEKMODE_START)) {	
 		return MSPACK_ERR_SEEK;
 	}
 	
@@ -255,7 +217,7 @@ int mscabd_cabinet::read_headers(off_t offset, int quiet)
 		}
 		
 		if (this->header_resv) {
-			if (_fh->seek((off_t) this->header_resv, MSPACK_SYS_SEEK_CUR)) {
+			if (_fh->seek((off_t) this->header_resv, PackFile::SEEKMODE_CUR)) {
 				return MSPACK_ERR_SEEK;
 			}
 		}
@@ -281,7 +243,7 @@ int mscabd_cabinet::read_headers(off_t offset, int quiet)
 			return MSPACK_ERR_READ;
 		}
 		if (folder_resv) {
-			if (_fh->seek((off_t) folder_resv, MSPACK_SYS_SEEK_CUR)) {
+			if (_fh->seek((off_t) folder_resv, PackFile::SEEKMODE_CUR)) {
 				return MSPACK_ERR_SEEK;
 			}
 		}
@@ -391,7 +353,7 @@ std::string mscabd_cabinet::read_string(int *error)
 	
 	len = i + 1;
 	
-	if (_fh->seek(base + (off_t)len, MSPACK_SYS_SEEK_START)) {
+	if (_fh->seek(base + (off_t)len, PackFile::SEEKMODE_START)) {
 		*error = MSPACK_ERR_SEEK;
 		return NULL;
 	}
@@ -405,7 +367,7 @@ std::string mscabd_cabinet::read_string(int *error)
 int mscab_decompressor::extract(mscabd_file *file, std::string filename)
 {
 	struct mscabd_folder *fol;
-	struct mspack_file *fh;
+	PackFile *fh;
 	
 	int test = 0;
 	if (file) test = 1;
@@ -413,7 +375,7 @@ int mscab_decompressor::extract(mscabd_file *file, std::string filename)
 	
 	if (!file) return error = MSPACK_ERR_ARGS;
 	
-	fol = (struct mscabd_folder *) file->folder;
+	fol = file->folder;
 	
 	/* check if file can be extracted */
 	if ((!fol) || (fol->merge_prev) ||
@@ -437,14 +399,14 @@ int mscab_decompressor::extract(mscabd_file *file, std::string filename)
 			}//system->close(d->infh);
 			d->incab = fol->data.cab;
 			printf("Data.cab: %s\n",fol->data.cab->GetFilename().c_str());
-			d->infh = new mspack_file(fol->data.cab->GetFilename(), MSPACK_SYS_OPEN_READ);
+			d->infh = new PackFile(fol->data.cab->GetFilename(), PackFile::OPEN_READ);
 			if (!d->infh) {
 				printf("Crashed here\n");
 				return error = MSPACK_ERR_OPEN;	
 			}
 		}
 			printf("Got here\n");
-		if (d->infh->seek(fol->data.offset, MSPACK_SYS_SEEK_START)) {
+		if (d->infh->seek(fol->data.offset, PackFile::SEEKMODE_START)) {
 			return error = MSPACK_ERR_SEEK;
 		}
 		
@@ -459,7 +421,7 @@ int mscab_decompressor::extract(mscabd_file *file, std::string filename)
 		d->i_ptr = d->i_end = &d->input[0];
 	}
 	
-	if (!(fh = new mspack_file(filename, MSPACK_SYS_OPEN_WRITE))) {
+	if (!(fh = new PackFile(filename, PackFile::OPEN_WRITE))) {
 		return error = MSPACK_ERR_OPEN;
 	}
 
@@ -489,19 +451,6 @@ int mscab_decompressor::extract(mscabd_file *file, std::string filename)
 	return error;
 }
 
-int mscab_decompressor::last_error() {
-	return error;
-}
-
-void mscab_decompressor::printFiles() {
-	char *filename;
-	struct mscabd_file *file;
-	
-	for (file = _cab->files; file; file = file->next) {
-		printf("Cabinet contains %s!\n", file->filename.c_str());
-	}	
-}
-
 void mscab_decompressor::extract_files() {
 	unsigned int files_extracted = 0;
 	struct mscabd_file *file;
@@ -523,9 +472,22 @@ void mscab_decompressor::extract_files() {
 	printf("%d file(s) extracted.\n", files_extracted);
 }
 
+int mscab_decompressor::last_error() {
+	return error;
+}
+
+void mscab_decompressor::printFiles() {
+	char *filename;
+	struct mscabd_file *file;
+	
+	for (file = _cab->files; file; file = file->next) {
+		printf("Cabinet contains %s!\n", file->filename.c_str());
+	}	
+}
+
 int mscab_decompressor::init_decomp(unsigned int ct)
 {
-	struct mspack_file *fh = (struct mspack_file *) this;
+	struct PackFile *fh = (struct PackFile *) this;
 	
 	free_decomp();
 	
@@ -552,13 +514,13 @@ int mscabd_decompress_state::ZipDecompress(off_t offset) {
 		return MSPACK_ERR_OK;*/
 	char *data = state->getData();
 	unsigned int len = state->getLen();
-	if (sys.write(initfh, data, len) != len)
+	if (decsys.write(initfh, data, len) != len)
 		return MSPACK_ERR_WRITE;
 	else
 		return MSPACK_ERR_OK;
 }
 
-int mscabd_decompress_state::init(mspack_file * fh, unsigned int ct) {
+int mscabd_decompress_state::init(PackFile * fh, unsigned int ct) {
 	comp_type = ct;
 	initfh = fh;
 	
@@ -569,7 +531,7 @@ int mscabd_decompress_state::init(mspack_file * fh, unsigned int ct) {
 	assert ((ct & cffoldCOMPTYPE_MASK) == cffoldCOMPTYPE_MSZIP);
 /*	switch (ct & cffoldCOMPTYPE_MASK) {
 		case cffoldCOMPTYPE_MSZIP:*/
-	state = new mszipd_stream(&sys, fh, fh, PARAM_DECOMPBUF, PARAM_FIXMSZIP);
+	state = new mszipd_stream(&decsys, fh, fh, PARAM_DECOMPBUF, PARAM_FIXMSZIP);
 /*			break;
 		default:
 			return internal_error = MSPACK_ERR_DATAFORMAT;
@@ -578,15 +540,13 @@ int mscabd_decompress_state::init(mspack_file * fh, unsigned int ct) {
 	//return internal_error = (state) ? MSPACK_ERR_OK : MSPACK_ERR_NOMEMORY;
 }
 
-//static int cabd_sys_read(struct mspack_file *file, void *buffer, int bytes) {
-int dec_system::read(struct mspack_file *file, void *buffer, int bytes) {
+int dec_system::read(struct PackFile *file, void *buffer, int bytes) {
 	mscab_decompressor *handle = (struct mscab_decompressor *) file;
 	unsigned char *buf = (unsigned char *) buffer;
 	//mspack_system *sys = handle->getSystem();
 	int avail, todo, outlen = 0, ignore_cksum;
 	
-	ignore_cksum = PARAM_FIXMSZIP &&
-    ((handle->d->comp_type & cffoldCOMPTYPE_MASK) == cffoldCOMPTYPE_MSZIP);
+	ignore_cksum = PARAM_FIXMSZIP && ((handle->d->comp_type & cffoldCOMPTYPE_MASK) == cffoldCOMPTYPE_MSZIP);
 	
 	todo = bytes;
 	while (todo > 0) {
@@ -619,7 +579,7 @@ int dec_system::read(struct mspack_file *file, void *buffer, int bytes) {
 	return bytes - todo;
 }
 
-int dec_system::write(struct mspack_file *file, void *buffer, int bytes) {
+int dec_system::write(struct PackFile *file, void *buffer, int bytes) {
 	struct mscab_decompressor *handle = (struct mscab_decompressor *) file;
 	handle->d->offset += bytes;
 	if (handle->d->outfh) {
@@ -636,14 +596,12 @@ int dec_system::read_block(mscabd_decompress_state *d, int *out, int ignore_cksu
 	d->i_ptr = d->i_end = &d->input[0];
 	
 	do {
-		//if (this->read(d->infh, &hdr[0], cfdata_SIZEOF) != cfdata_SIZEOF) {
 		if (d->infh->read(&hdr[0], cfdata_SIZEOF) != cfdata_SIZEOF) {
 			return MSPACK_ERR_READ;
 		}
 		
 		if (d->data->cab->block_resv &&
-			this->seek(d->infh, (off_t) d->data->cab->block_resv,
-					  MSPACK_SYS_SEEK_CUR))
+			d->infh->seek((off_t) d->data->cab->block_resv, PackFile::SEEKMODE_CUR))
 		{
 			return MSPACK_ERR_SEEK;
 		}
@@ -684,12 +642,12 @@ int dec_system::read_block(mscabd_decompress_state *d, int *out, int ignore_cksu
 		}
 		
 		d->incab = d->data->cab;
-		if (!(d->infh = new mspack_file(d->incab->GetFilename(), MSPACK_SYS_OPEN_READ)))
+		if (!(d->infh = new PackFile(d->incab->GetFilename(), PackFile::OPEN_READ)))
 		{
 			return MSPACK_ERR_OPEN;
 		}
 		
-		if (d->infh->seek(d->data->offset, MSPACK_SYS_SEEK_START)) {
+		if (d->infh->seek(d->data->offset, PackFile::SEEKMODE_START)) {
 			return MSPACK_ERR_SEEK;
 		}
 	} while (1);
@@ -777,164 +735,11 @@ std::string mscab_decompressor::file_filter(const struct mscabd_file *file) {
 	return "";
 }
 
-// Res_system
-uint16 *create_dec_table(uint32 key) {
-	uint32 value;
-	uint16 *dectable;
-	unsigned int i;
-	
-	value = key;
-	dectable = new uint16[CODE_TABLE_SIZE * 2];
-	
-	for (i = 0; i < CODE_TABLE_SIZE; i++) {
-		value = RAND_A * value + RAND_B;
-		dectable[i] = (uint16)((value >> 16) & 0x7FFF);
-	}
-	
-	return dectable;
-}
-
-struct mspack_file *res_system::open(std::string filename, int mode) {
-	return new mspack_file(filename, mode);
-}
-
-void res_system::close(struct mspack_file *file) {
-	file->close();
-	//delete file;
-}
-
-int res_system::seek(struct mspack_file *file, off_t offset, int mode) {
-	return file->seek(offset, mode);
-}
-
-off_t res_system::tell(struct mspack_file *file) {
-	return file->tell();
-}
-
-void decode(uint8 *data, unsigned int size, uint16 *dectable, unsigned int start_point) {
-	unsigned int i;
-	for (i = 0; i < size; i++)
-		data[i] = (data[i] ^ (uint8) dectable[(i + start_point) % CODE_TABLE_SIZE]) - (uint8)(dectable[(i + start_point) % CODE_TABLE_SIZE] >> 8);
-}
-
-int res_system::read(struct mspack_file *file, void *buffer, int bytes) {
-	return file->read(buffer, bytes);
-}
-
-int res_system::write(struct mspack_file *file, void *buffer, int bytes) {
-	return file->write(buffer, bytes);
-}
-
-mspack_file::mspack_file(std::string filename, int mode) {
-	printf("Call to open %s with mode %d\n",filename.c_str(), mode);
-
-	const char *fmode;
-	uint32 magic, key;
-	uint8 count;
-	
-	switch (mode) {
-		case MSPACK_SYS_OPEN_READ:   fmode = "rb";  break;
-		case MSPACK_SYS_OPEN_WRITE:  fmode = "wb";  break;
-		default: 
-			printf("Wrong mode\n");
-			assert(0);
-	}
-	
-	//fh = new mspack_file();
-	
-	this->name = filename;
-	if (!(this->fh = fopen(filename.c_str(), fmode))) {
-		delete fh;
-		assert(0); // TODO FIX BETTER SOLUTION
-	}
-	
-	this->CodeTable = NULL;
-	
-	if (mode == MSPACK_SYS_OPEN_READ) {
-		
-		//Search for data
-		while(!feof(this->fh)) {
-			//Check for content signature
-			count = read(&magic, 4);
-			if (count == 4 && memcmp(&magic, CONTAINER_MAGIC, 4) == 0) {
-				read(&key, 4);
-				key = READ_LE_UINT32(&key);
-				this->CodeTable = create_dec_table(key);
-				this->cabinet_offset = ftell(this->fh);
-				
-				//Check for cabinet signature
-				count = read(&magic, 4);
-				if (count == 4 && memcmp(&magic, CABINET_MAGIC, 4) == 0) {
-					break;
-				} else {
-					delete this->CodeTable;
-					this->CodeTable = NULL;
-					continue;
-				}
-			}
-		}
-		
-		seek((off_t) 0, MSPACK_SYS_SEEK_START);
-	}
-	inited = true;
-	//	return (struct mspack_file *)fh;
-}
-
-void mspack_file::close() {
-	if (!inited) {
-		return;
-	}
-	if (CodeTable)
-		delete CodeTable;
-	fclose(fh);
-}
-
-int mspack_file::seek(off_t offset, int mode) {
-	switch (mode) {
-		case MSPACK_SYS_SEEK_START:
-			mode = SEEK_SET;
-			if (CodeTable)
-				offset += cabinet_offset;
-			break;
-		case MSPACK_SYS_SEEK_CUR:   mode = SEEK_CUR; break;
-		case MSPACK_SYS_SEEK_END:   mode = SEEK_END; break;
-		default: return -1;
-	}
-	return fseek(fh, (int)offset, mode);
-}
-
-int mspack_file::read(void *buffer, int bytes) {
-	unsigned int start_point = (unsigned int)tell();
-	size_t count = fread(buffer, 1, (size_t) bytes, fh);
-	
-	if (!ferror(this->fh)) {
-		if (CodeTable)
-			decode((uint8*)buffer, count, CodeTable, start_point);
-		return (int) count;
-	}
-	return -1;
-}
-
-int mspack_file::write(void *buffer, int bytes) {
-	if (CodeTable)
-		return -1;
-	size_t count = fwrite(buffer, 1, (size_t)bytes, fh);
-	if (!ferror(fh)) return (int) count;
-	
-	return -1;
-}
-
-off_t mspack_file::tell() {
-	off_t offset = ftell(this->fh);
-	offset -= this->cabinet_offset;
-	return offset;
-}
-
 // CabFile
 
 CabFile::CabFile(std::string filename) {
 	_filename = filename;
-	_cabd = mspack_create_cab_decompressor();
+	_cabd = new mscab_decompressor();
 	_cabd->open(_filename);
 	assert(!_cabd->last_error());
 }
@@ -952,13 +757,13 @@ void CabFile::SetLanguage(unsigned int lang) {
 
 #define BUFFER_SIZE 		102400
 void CabFile::ExtractCabinet() {
-	struct mspack_file *original_executable, *destination_cabinet;
+	struct PackFile *original_executable, *destination_cabinet;
 	char *buffer;
 	unsigned int copied_bytes;
 	int count;
 	
-	original_executable = new mspack_file(_filename.c_str(), MSPACK_SYS_OPEN_READ);
-	destination_cabinet = new mspack_file("original.cab", MSPACK_SYS_OPEN_WRITE);
+	original_executable = new PackFile(_filename.c_str(), PackFile::OPEN_READ);
+	destination_cabinet = new PackFile("original.cab", PackFile::OPEN_WRITE);
 	
 	buffer = new char[BUFFER_SIZE];
 	copied_bytes = 0;
@@ -987,7 +792,7 @@ void CabFile::OpenCAB(std::string filename)
 	if (_cab)
 		close();
 	
-	if ((fh = system->open(filename, MSPACK_SYS_OPEN_READ))) {
+	if ((fh = system->open(filename, PackFile::OPEN_READ))) {
 		if (_cab = new mscabd_cabinet()) {
 			_cab->filename = filename;
 			error = read_headers(fh, (mscabd_cabinet_p *) _cab, (off_t) 0, 0);

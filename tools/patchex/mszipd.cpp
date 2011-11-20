@@ -464,7 +464,7 @@ int mszipd_stream::flush_window(unsigned int data_flushed)
 	return 0;
 }
 
-mszipd_stream::mszipd_stream(struct mspack_system *system, mspack_file *input, mspack_file *output, int input_buffer_size, int repair_mode)
+mszipd_stream::mszipd_stream(struct dec_system *system, PackFile *input, PackFile *output, int input_buffer_size, int repair_mode)
 {
 	assert(system);
 	

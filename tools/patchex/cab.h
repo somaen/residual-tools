@@ -85,19 +85,11 @@ struct mscabd_folder;
 struct mscabd_folder_data;
 class mscabd_decompress_state;
 
-class dec_system : public res_system {
-	int read_block(mscabd_decompress_state *d, int *out, int ignore_cksum);
-public:
-	int read(struct mspack_file *file, void *buffer, int bytes);
-	int write(struct mspack_file *file, void *buffer, int bytes);
-
-};
-
 class mscabd_decompress_state {
 public:
 	mscabd_decompress_state();
 	~mscabd_decompress_state();
-	int init(mspack_file * fh, unsigned int ct);
+	int init(PackFile * fh, unsigned int ct);
 	mscabd_folder *folder;
 	mscabd_folder_data *data;
 	unsigned int offset;
@@ -107,13 +99,13 @@ public:
 	int ZipDecompress(off_t offset);
 	mszipd_stream *state;
 	struct mscabd_cabinet *incab;
-	struct mspack_file *infh;
-	struct mspack_file *outfh;
+	struct PackFile *infh;
+	struct PackFile *outfh;
 	unsigned char *i_ptr, *i_end;
 	unsigned char input[CAB_INPUTMAX];
 private:
-	struct mspack_file *initfh;
-	dec_system sys;
+	struct PackFile *initfh;
+	dec_system decsys;
 };
 
 char *file_filter(const struct mscabd_file *file);
@@ -122,6 +114,7 @@ struct mscabd_cabinet {
 	mscabd_cabinet(std::string fname);
 	int read_headers(off_t offset, int quiet);
 	std::string read_string(int *error);
+	int read_block(int *out, int ignore_cksum);
 	std::string GetFilename() { return filename; }
 	mscabd_cabinet *next;
 	
@@ -132,15 +125,15 @@ struct mscabd_cabinet {
 	std::string prevname, nextname, previnfo, nextinfo;
 	struct mscabd_file *files;
 	struct mscabd_folder *folders;
+	int block_resv;
+private:
 	unsigned short set_id;
 	unsigned short set_index;
 	unsigned short header_resv;
 	int flags;
 	off_t blocks_off;
-	int block_resv;
-private:
 	std::string filename;
-	mspack_file *_fh;
+	PackFile *_fh;
 };
 
 struct mscab_decompressor {
@@ -158,15 +151,16 @@ struct mscab_decompressor {
 //private:
 	
 	
-	struct mscabd_decompress_state *d;
+
 //	int param[3];
 	int error;
 	unsigned int lang;
 private:
+		struct mscabd_decompress_state *d;
 	int init_decomp(unsigned int ct);
 	void free_decomp();
 	mscabd_cabinet *_cab;
-	std::string read_string(mspack_file *fh, mscabd_cabinet *, int *error);
+	std::string read_string(PackFile *fh, mscabd_cabinet *, int *error);
 	std::string file_filter(const struct mscabd_file *file);
 };
 

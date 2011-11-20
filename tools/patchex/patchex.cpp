@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	res_system *sys = new res_system();
+	//res_system *sys = new res_system();
 
 	// Extraction !
 	CabFile cabd(argv[1]);
@@ -147,7 +147,7 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}*/
 	
-	delete sys;
+	//	delete sys;
 
 	return 0;
 }

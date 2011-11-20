@@ -36,6 +36,7 @@
 #define MSPACK_MSZIP_H 1
 
 #include "tools/patchex/mspack.h"
+#include "tools/patchex/packfile.h"
 
 
 #define MSZIP_FRAME_SIZE          (32768)
@@ -61,16 +62,16 @@
 
 class mszipd_stream {
 public:
-	mszipd_stream(mspack_system *system, mspack_file *input, mspack_file *output, int input_buffer_size, int repair_mode);
+	mszipd_stream(dec_system *system, PackFile *input, PackFile *output, int input_buffer_size, int repair_mode);
 	~mszipd_stream();
 	int decompress(off_t out_bytes);
 	char *getData() { return _outBuf; } // Very thread-unsafe
 	unsigned int getLen() { return _outBufOffset; }
 private:
-	mspack_system *_sys;
+	dec_system *_sys;
 	
-	mspack_file   *_input;
-	mspack_file   *_output;
+	PackFile   *_input;
+	PackFile   *_output;
 	
 	int flush_window(unsigned int);
 	
