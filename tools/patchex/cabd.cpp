@@ -732,20 +732,20 @@ void CabFile::Write(std::string filename, char *data, unsigned int length) {
 	delete fh;
 }
 
-#define LANG_ALL1 "@@"
-#define LANG_ALL2 "Common"
+#define LANG_ALL "@@"
 std::string CabFile::FileFilter(const struct mscabd_file *file) {
 	const char *kLanguages_ext[] = { "English", "French", "German", "Italian", "Portuguese", "Spanish", NULL};
-	const char *kLanguages_code1[] = { "US", "FR", "GE", "IT", "PT", "SP",  NULL };
-	const char *kLanguages_code2[] = { "Eng", "Fra", "Deu", "Ita", "Brz", "Esp",  NULL };
+	const char *kLanguages_code[] = { "US", "FR", "GE", "IT", "PT", "SP",  NULL };
 	
-	char *filename;
+	char *filename = NULL;
 	std::string retFilename;
 	unsigned int filename_size;
 	
 	filename_size = file->_filename.length();
 	
-	//Skip executables and libries
+	/* Skip executables and libraries
+	 * These files are useless for Residual and a proper extraction of these
+	 * requires sub-folder support, so it isn't implemented. */
 	const char *ext = file->_filename.substr(filename_size - 3).c_str();
 	
 	if (strcasecmp(ext, "exe") == 0 ||
@@ -762,25 +762,19 @@ std::string CabFile::FileFilter(const struct mscabd_file *file) {
 		char file_lang[3];
 		sscanf(file->_filename.c_str(), "%2s_%s",file_lang, filename);
 		retFilename = std::string(filename);
-		if (strcmp(file_lang, kLanguages_code1[_lang]) == 0 || strcmp(file_lang, LANG_ALL1) == 0) {
+		if (strcmp(file_lang, kLanguages_code[_lang]) == 0 || strcmp(file_lang, LANG_ALL) == 0) {
 			delete[] filename;
 			return retFilename;
 		}
 	}
 	
-	//Folder-style localization (EMI)
-	unsigned int lcode_size_com, lcode_size_loc;
-	lcode_size_com = strlen(LANG_ALL2);
-	lcode_size_loc = strlen(kLanguages_code2[_lang]);
-	if ((filename_size > lcode_size_com && strncmp(file->_filename.c_str(), LANG_ALL2, lcode_size_com - 1) == 0) ||
-	    (filename_size > lcode_size_loc && strncmp(file->_filename.c_str(), kLanguages_code2[_lang], lcode_size_loc) == 0) ) {
-		char *fn = rindex(file->_filename.c_str(), '\\') + 1;
-		if (fn != NULL) {
-			retFilename = std::string(fn);
-			//			strcpy(filename, fn);
-			delete[] filename;
-			return retFilename;
-		}
+	/* Folder-style localization (EMI) Because EMI updates aren't multi-language,
+	 * every file is extracted (except for Win's binaries). Subfolders are ignored */
+	char *fn = strchr(file->_filename.c_str(), '\\');
+	if (fn != NULL && fn[0] != 0) {
+		retFilename = std::string(fn);
+		delete[] filename;
+		return retFilename;
 	}
 	
 	delete[] filename;

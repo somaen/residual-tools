@@ -41,6 +41,7 @@
 
 #include <sys/types.h>
 #include <string>
+#include "common/endian.h"
 
 struct mscab_decompressor;
 struct mscabd_file;
