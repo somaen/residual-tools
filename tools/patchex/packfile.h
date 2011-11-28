@@ -53,6 +53,7 @@ public:
 	~PackFile() { close(); }
 	void close();
 	int read(void *buffer, int bytes);
+	std::string getName() { return name; }
 	std::string read_string(int *error);
 	int write(void *buffer, int bytes);
 	int seek(off_t offset, int mode);

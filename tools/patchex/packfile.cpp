@@ -71,7 +71,7 @@ void PackFile::decode(uint8 *data, unsigned int size, uint16 *dectable, unsigned
 }
 
 PackFile::PackFile(std::string filename, int mode) {
-	printf("Call to open %s with mode %d\n",filename.c_str(), mode);
+	//printf("Call to open %s with mode %d\n",filename.c_str(), mode);
 	
 	const char *fmode;
 	uint32 magic, key;

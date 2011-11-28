@@ -75,6 +75,7 @@ public:
 	
 	int decompress(off_t offset) { return ZipDecompress(offset); }
 	int ZipDecompress(off_t offset);
+	int	zlibDecompress(off_t offset, Bytef *&ret);
 	mszipd_stream *_state;
 	struct mscabd_cabinet *_incab;
 	struct PackFile *_infh;
@@ -129,9 +130,9 @@ struct mscab_decompressor {
 //private:
 	
 //	int param[3];
+	struct mscabd_decompress_state *d;
 	int error;
 	unsigned int lang;
-	struct mscabd_decompress_state *d;
 private:
 		
 	int init_decomp(unsigned int ct);
