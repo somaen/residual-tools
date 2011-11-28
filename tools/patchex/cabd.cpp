@@ -769,5 +769,5 @@ std::string CabFile::FileFilter(const struct mscabd_file *file) {
 	}
 	
 	delete[] filename;
-	return "";
+	return std::string("");
 }
