@@ -33,7 +33,9 @@
 #define MSPACK_CAB_H
 
 #include <string>
-#include "tools/patchex/mszip.h"
+#include <zlib.h>
+#include "tools/patchex/mspack.h"
+#include "tools/patchex/packfile.h"
 
 const int cfheadext_HeaderReserved	= (0x00);
 const int cfheadext_FolderReserved	= (0x02);
@@ -56,7 +58,7 @@ const int cfheadRESERVE_PRESENT		= (0x0004);
 #define CAB_INPUTMAX (CAB_BLOCKMAX+6144)
 
 struct mspack_system;
-struct mszipd_stream;
+//struct mszipd_stream;
 struct mscabd_folder;
 struct mscabd_folder_data;
 class mscabd_decompress_state;
@@ -73,10 +75,10 @@ public:
 	unsigned int _block;
 	int _comp_type;
 	
-	int decompress(off_t offset) { return ZipDecompress(offset); }
-	int ZipDecompress(off_t offset);
-	int	zlibDecompress(off_t offset, Bytef *&ret);
-	mszipd_stream *_state;
+	int decompress(off_t preread, off_t offset, off_t length) { return ZipDecompress(preread, offset, length); }
+	int ZipDecompress(off_t preread, off_t offset, off_t length);
+	int	zlibDecompress(off_t preread, off_t offset, off_t length, Bytef *&ret);
+	//mszipd_stream *_state;
 	struct mscabd_cabinet *_incab;
 	struct PackFile *_infh;
 	struct PackFile *_outfh;

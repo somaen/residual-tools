@@ -35,9 +35,9 @@
 #ifndef MSPACK_MSZIP_H
 #define MSPACK_MSZIP_H 1
 
-#include "tools/patchex/mspack.h"
-#include "tools/patchex/packfile.h"
 
+#include <cassert>
+/*
 
 #define MSZIP_FRAME_SIZE          (32768)
 #define MSZIP_MAX_HUFFBITS        (16)
@@ -98,5 +98,6 @@ private:
 //	unsigned int writeFinalOutput();
 	int inflate();
 };
-
+*/
 #endif
+ 

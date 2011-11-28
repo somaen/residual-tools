@@ -31,7 +31,7 @@
  *
  * For further details, see the file COPYING.LIB distributed with libmspack
  */
-
+/*
 #include <cassert>
 #include "tools/patchex/mszip.h"
 
@@ -126,12 +126,12 @@ int mszipd_stream::writeOutput(unsigned int amount) {
 	memcpy(_outBuf + _outBufOffset, _o_ptr, amount);
 	_outBufOffset += amount;
 	return amount;
-}
+}*/
 /*
 unsigned int mszipd_stream::writeFinalOutput() {
 	return _sys->write(_output, _outBuf, _outBufOffset);
 }*/
-
+/*
 #define INF_ERR_BLOCKTYPE   (-1)
 #define INF_ERR_COMPLEMENT  (-2)
 #define INF_ERR_FLUSH       (-3)
@@ -562,11 +562,11 @@ int mszipd_stream::decompress(off_t out_bytes) {
 	
 	if (out_bytes) {
 		return error = MSPACK_ERR_DECRUNCH;
-	}
+	}*/
 /*	if (writeFinalOutput() != _outBufOffset) {
 		return MSPACK_ERR_WRITE;
 	}*/
-	return MSPACK_ERR_OK;
+/*	return MSPACK_ERR_OK;
 }
 
 mszipd_stream::~mszipd_stream() {
@@ -577,3 +577,4 @@ mszipd_stream::~mszipd_stream() {
 		delete _outBuf;
 	}
 }
+*/

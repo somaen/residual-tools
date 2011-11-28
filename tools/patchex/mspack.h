@@ -49,9 +49,7 @@
 class mscabd_decompress_state;
 
 class dec_system {
-	int read_block(mscabd_decompress_state *d, int *out, int ignore_cksum);
 public:
-	int read(struct PackFile *file, void *buffer, int bytes);
 	int write(struct PackFile *file, void *buffer, int bytes);
 };
 
