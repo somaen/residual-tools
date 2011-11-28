@@ -73,20 +73,23 @@ public:
 
 struct mscab_decompressor;
 struct mscabd_folder;
+struct mscabd_cabinet;
+class PackFile;
 
 struct mscabd_file {
-	mscabd_file *next;
-	std::string filename;
-	unsigned int length;
-	int attribs;
-	char time_h;
-	char time_m;
-	char time_s;
-	char date_d;
-	char date_m;
-	int date_y;
-	mscabd_folder *folder;
-	unsigned int offset;
+	mscabd_file(PackFile * fh, mscabd_cabinet *cab);
+	mscabd_file *_next;
+	std::string _filename;
+	unsigned int _length;
+	int _attribs;
+	char _time_h;
+	char _time_m;
+	char _time_s;
+	char _date_d;
+	char _date_m;
+	int _date_y;
+	mscabd_folder *_folder;
+	unsigned int _offset;
 };
 
 class CabFile {

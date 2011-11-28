@@ -157,6 +157,38 @@ int PackFile::read(void *buffer, int bytes) {
 	return -1;
 }
 
+#define MSPACK_ERR_OK          (0)
+#define MSPACK_ERR_SEEK        (5)
+#define MSPACK_ERR_DATAFORMAT  (8)
+
+
+std::string PackFile::read_string(int *error)
+{
+	off_t base = this->tell();
+	char buf[256];
+	unsigned int len, i, ok;
+	
+	len = this->read(&buf[0], 256);
+	
+	for (i = 0, ok = 0; i < len; i++) if (!buf[i]) { ok = 1; break; }
+	if (!ok) {
+		*error = MSPACK_ERR_DATAFORMAT;
+		return NULL;
+	}
+	
+	len = i + 1;
+	
+	if (this->seek(base + (off_t)len, PackFile::SEEKMODE_START)) {
+		*error = MSPACK_ERR_SEEK;
+		return NULL;
+	}
+	
+	std::string str(buf);
+	//	memcpy(str, &buf[0], len);
+	*error = MSPACK_ERR_OK;
+	return str;
+}
+
 int PackFile::write(void *buffer, int bytes) {
 	if (CodeTable)
 		return -1;

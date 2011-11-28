@@ -62,7 +62,7 @@
 
 class mszipd_stream {
 public:
-	mszipd_stream(dec_system *system, PackFile *input, PackFile *output, int input_buffer_size, int repair_mode);
+	mszipd_stream(dec_system *system, PackFile *input, PackFile *output);
 	~mszipd_stream();
 	int decompress(off_t out_bytes);
 	char *getData() { return _outBuf; } // Very thread-unsafe

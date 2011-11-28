@@ -104,7 +104,7 @@ ENSURE_BITS(nbits); (val) = PEEK_BITS_T(nbits); REMOVE_BITS(nbits);   \
 } while (0)
 
 int mszipd_stream::read_input() {
-	printf ("inbuf_size %d\n",_inbuf_size);
+	//printf ("inbuf_size %d\n",_inbuf_size);
 	int read = _sys->read(_input, &_inbuf[0], (int)_inbuf_size);
 	if (read < 0) return _error = MSPACK_ERR_READ;
 	_i_ptr = &_inbuf[0];
@@ -464,11 +464,14 @@ int mszipd_stream::flush_window(unsigned int data_flushed)
 	return 0;
 }
 
-mszipd_stream::mszipd_stream(struct dec_system *system, PackFile *input, PackFile *output, int input_buffer_size, int repair_mode)
+mszipd_stream::mszipd_stream(struct dec_system *system, PackFile *input, PackFile *output)
 {
 	assert(system);
 	
-	input_buffer_size = (input_buffer_size + 1) & -2;
+	const int PARAM_FIXMSZIP = (0);
+	const int PARAM_DECOMPBUF = (65536);
+	
+	int input_buffer_size = (PARAM_DECOMPBUF + 1) & -2;
 	assert(input_buffer_size);
 	
 	_inbuf  = (unsigned char *)new size_t[input_buffer_size];
@@ -479,7 +482,7 @@ mszipd_stream::mszipd_stream(struct dec_system *system, PackFile *input, PackFil
 	_output          = output;
 	_inbuf_size      = input_buffer_size;
 	_error           = MSPACK_ERR_OK;
-	_repair_mode     = repair_mode;
+	_repair_mode     = PARAM_FIXMSZIP;
 	
 	_i_ptr = _i_end = &_inbuf[0];
 	_o_ptr = _o_end = NULL;

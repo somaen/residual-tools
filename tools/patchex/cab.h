@@ -35,46 +35,22 @@
 #include <string>
 #include "tools/patchex/mszip.h"
 
-#define cfhead_Signature         (0x00)
-#define cfhead_CabinetSize       (0x08)
-#define cfhead_FileOffset        (0x10)
-#define cfhead_MinorVersion      (0x18)
-#define cfhead_MajorVersion      (0x19)
-#define cfhead_NumFolders        (0x1A)
-#define cfhead_NumFiles          (0x1C)
-#define cfhead_Flags             (0x1E)
-#define cfhead_SetID             (0x20)
-#define cfhead_CabinetIndex      (0x22)
-#define cfhead_SIZEOF            (0x24)
-#define cfheadext_HeaderReserved (0x00)
-#define cfheadext_FolderReserved (0x02)
-#define cfheadext_DataReserved   (0x03)
-#define cfheadext_SIZEOF         (0x04)
-#define cffold_DataOffset        (0x00)
-#define cffold_NumBlocks         (0x04)
-#define cffold_CompType          (0x06)
-#define cffold_SIZEOF            (0x08)
-#define cffile_UncompressedSize  (0x00)
-#define cffile_FolderOffset      (0x04)
-#define cffile_FolderIndex       (0x08)
-#define cffile_Date              (0x0A)
-#define cffile_Time              (0x0C)
-#define cffile_Attribs           (0x0E)
-#define cffile_SIZEOF            (0x10)
-#define cfdata_CheckSum          (0x00)
-#define cfdata_CompressedSize    (0x04)
-#define cfdata_UncompressedSize  (0x06)
-#define cfdata_SIZEOF            (0x08)
+const int cfheadext_HeaderReserved	= (0x00);
+const int cfheadext_FolderReserved	= (0x02);
+const int cfheadext_DataReserved	= (0x03);
+const int cfheadext_SIZEOF			= (0x04);
 
-#define cffoldCOMPTYPE_MASK            (0x000f)
-#define cffoldCOMPTYPE_NONE            (0x0000)
-#define cffoldCOMPTYPE_MSZIP           (0x0001)
-#define cfheadPREV_CABINET             (0x0001)
-#define cfheadNEXT_CABINET             (0x0002)
-#define cfheadRESERVE_PRESENT          (0x0004)
-#define cffileCONTINUED_FROM_PREV      (0xFFFD)
-#define cffileCONTINUED_TO_NEXT        (0xFFFE)
-#define cffileCONTINUED_PREV_AND_NEXT  (0xFFFF)
+const int cfdata_CheckSum			= (0x00);
+const int cfdata_CompressedSize		= (0x04);
+const int cfdata_UncompressedSize	= (0x06);
+const int cfdata_SIZEOF				= (0x08);
+
+const int cffoldCOMPTYPE_MASK		= (0x000f);
+const int cffoldCOMPTYPE_NONE		= (0x0000);
+const int cffoldCOMPTYPE_MSZIP		= (0x0001);
+const int cfheadPREV_CABINET		= (0x0001);
+const int cfheadNEXT_CABINET		= (0x0002);
+const int cfheadRESERVE_PRESENT		= (0x0004);
 
 #define CAB_BLOCKMAX (32768)
 #define CAB_INPUTMAX (CAB_BLOCKMAX+6144)
@@ -90,22 +66,24 @@ public:
 	mscabd_decompress_state();
 	~mscabd_decompress_state();
 	int init(PackFile * fh, unsigned int ct);
-	mscabd_folder *folder;
-	mscabd_folder_data *data;
-	unsigned int offset;
-	unsigned int block;
-	int comp_type;
+	
+	mscabd_folder *_folder;
+	mscabd_folder_data *_data;
+	unsigned int _offset;
+	unsigned int _block;
+	int _comp_type;
+	
 	int decompress(off_t offset) { return ZipDecompress(offset); }
 	int ZipDecompress(off_t offset);
-	mszipd_stream *state;
-	struct mscabd_cabinet *incab;
-	struct PackFile *infh;
-	struct PackFile *outfh;
-	unsigned char *i_ptr, *i_end;
-	unsigned char input[CAB_INPUTMAX];
+	mszipd_stream *_state;
+	struct mscabd_cabinet *_incab;
+	struct PackFile *_infh;
+	struct PackFile *_outfh;
+	unsigned char *_i_ptr, *_i_end;
+	unsigned char _input[CAB_INPUTMAX];
 private:
-	struct PackFile *initfh;
-	dec_system decsys;
+	struct PackFile *_initfh;
+	dec_system _decsys;
 };
 
 char *file_filter(const struct mscabd_file *file);
@@ -113,26 +91,26 @@ char *file_filter(const struct mscabd_file *file);
 struct mscabd_cabinet {
 	mscabd_cabinet(std::string fname);
 	int read_headers(off_t offset, int quiet);
-	std::string read_string(int *error);
+	//std::string read_string(int *error);
 	int read_block(int *out, int ignore_cksum);
-	std::string GetFilename() { return filename; }
-	mscabd_cabinet *next;
+	std::string GetFilename() { return _filename; }
+	mscabd_cabinet *_next;
 	
-	off_t base_offset;
-	unsigned int length;
-	mscabd_cabinet *prevcab;
-	mscabd_cabinet *nextcab;
-	std::string prevname, nextname, previnfo, nextinfo;
-	struct mscabd_file *files;
-	struct mscabd_folder *folders;
-	int block_resv;
+	off_t _base_offset;
+	unsigned int _length;
+	mscabd_cabinet *_prevcab;
+	mscabd_cabinet *_nextcab;
+	std::string _prevname, _nextname, _previnfo, _nextinfo;
+	struct mscabd_file *_files;
+	struct mscabd_folder *_folders;
+	int _block_resv;
 private:
-	unsigned short set_id;
-	unsigned short set_index;
-	unsigned short header_resv;
-	int flags;
-	off_t blocks_off;
-	std::string filename;
+	unsigned short _set_id;
+	unsigned short _set_index;
+	unsigned short _header_resv;
+	int _flags;
+	off_t _blocks_off;
+	std::string _filename;
 	PackFile *_fh;
 };
 
@@ -147,16 +125,15 @@ struct mscab_decompressor {
 	int extract(struct mscabd_file *file, std::string filename);
 	int last_error();
 	
-	unsigned int getCabLength() { return _cab->length; }
+	unsigned int getCabLength() { return _cab->_length; }
 //private:
 	
-	
-
 //	int param[3];
 	int error;
 	unsigned int lang;
+	struct mscabd_decompress_state *d;
 private:
-		struct mscabd_decompress_state *d;
+		
 	int init_decomp(unsigned int ct);
 	void free_decomp();
 	mscabd_cabinet *_cab;
@@ -171,13 +148,14 @@ struct mscabd_folder_data {
 };
 
 struct mscabd_folder {
-	struct mscabd_folder *next;
-	int comp_type;
-	unsigned int num_blocks;
+	mscabd_folder(unsigned char buf[64]);
+	struct mscabd_folder *_next;
+	int _comp_type;
+	unsigned int _num_blocks;
 	
-	mscabd_folder_data data;
-	struct mscabd_file *merge_prev;
-	struct mscabd_file *merge_next;
+	mscabd_folder_data _data;
+	struct mscabd_file *_merge_prev;
+	struct mscabd_file *_merge_next;
 };
 
 #endif
