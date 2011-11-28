@@ -36,11 +36,11 @@
 
 
 // Extraction constans
-#define RAND_A			(0x343FD)
-#define RAND_B			(0x269EC3)
+#define RAND_A				(0x343FD)
+#define RAND_B				(0x269EC3)
 #define CODE_TABLE_SIZE		(0x100)
 #define CONTAINER_MAGIC		"1CNT"
-#define CABINET_MAGIC			"MSCF"
+#define CABINET_MAGIC		"MSCF"
 
 uint32 READ_LE_UINT32(const void *ptr) {
 	const uint8 *b = (const uint8 *)ptr;

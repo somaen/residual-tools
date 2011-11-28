@@ -40,51 +40,14 @@
 #define LIB_MSPACK_H
 
 #include <sys/types.h>
-#include <cstdlib>
-#include <cstdio>
-#include <cstring>
 #include <string>
 
-class mscabd_decompress_state;
-/*
-class dec_system {
-public:
-	int write(struct PackFile *file, void *buffer, int bytes);
-};*/
 
-#define MSPACK_ERR_OK          (0)
-#define MSPACK_ERR_ARGS        (1)
-#define MSPACK_ERR_OPEN        (2)
-#define MSPACK_ERR_READ        (3)
-#define MSPACK_ERR_WRITE       (4)
-#define MSPACK_ERR_SEEK        (5)
-#define MSPACK_ERR_NOMEMORY    (6)
-#define MSPACK_ERR_SIGNATURE   (7)
-#define MSPACK_ERR_DATAFORMAT  (8)
-#define MSPACK_ERR_CHECKSUM    (9)
-//#define MSPACK_ERR_CRUNCH      (10)
-//#define MSPACK_ERR_DECRUNCH    (11)
 
 struct mscab_decompressor;
-struct mscabd_folder;
+struct mscabd_file;
 struct mscabd_cabinet;
 class PackFile;
-
-struct mscabd_file {
-	mscabd_file(PackFile * fh, mscabd_cabinet *cab);
-	mscabd_file *_next;
-	std::string _filename;
-	unsigned int _length;
-	int _attribs;
-	char _time_h;
-	char _time_m;
-	char _time_s;
-	char _date_d;
-	char _date_m;
-	int _date_y;
-	mscabd_folder *_folder;
-	unsigned int _offset;
-};
 
 class CabFile {
 	mscab_decompressor *_cabd;

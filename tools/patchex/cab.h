@@ -57,10 +57,19 @@ const unsigned int cfheadRESERVE_PRESENT	= (0x0004);
 #define CAB_BLOCKMAX (32768)
 #define CAB_INPUTMAX (CAB_BLOCKMAX+6144)
 
-//struct mspack_system;
+#define MSPACK_ERR_OK          (0)
+#define MSPACK_ERR_ARGS        (1)
+#define MSPACK_ERR_OPEN        (2)
+#define MSPACK_ERR_READ        (3)
+#define MSPACK_ERR_WRITE       (4)
+#define MSPACK_ERR_SEEK        (5)
+#define MSPACK_ERR_NOMEMORY    (6)
+#define MSPACK_ERR_SIGNATURE   (7)
+#define MSPACK_ERR_DATAFORMAT  (8)
+#define MSPACK_ERR_CHECKSUM    (9)
+
 struct mscabd_folder;
 struct mscabd_folder_data;
-class mscabd_decompress_state;
 
 class mscabd_decompress_state {
 public:
@@ -85,7 +94,6 @@ public:
 private:
 	int write(struct PackFile *file, void *buffer, int bytes);
 	struct PackFile *_initfh;
-	//dec_system _decsys;
 };
 
 char *file_filter(const struct mscabd_file *file);
@@ -133,9 +141,6 @@ private:
 	
 	struct mscabd_decompress_state *d;
 	int error;
-
-private:
-		
 	int init_decomp(unsigned int ct);
 	void free_decomp();
 	mscabd_cabinet *_cab;
@@ -158,6 +163,22 @@ struct mscabd_folder {
 	mscabd_folder_data _data;
 	struct mscabd_file *_merge_prev;
 	struct mscabd_file *_merge_next;
+};
+
+struct mscabd_file {
+	mscabd_file(PackFile * fh, mscabd_cabinet *cab);
+	mscabd_file *_next;
+	std::string _filename;
+	unsigned int _length;
+	int _attribs;
+	char _time_h;
+	char _time_m;
+	char _time_s;
+	char _date_d;
+	char _date_m;
+	int _date_y;
+	mscabd_folder *_folder;
+	unsigned int _offset;
 };
 
 #endif

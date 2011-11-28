@@ -62,8 +62,6 @@ public:
 	enum OpenMode {
 		OPEN_READ = 0,
 		OPEN_WRITE = 1,
-		OPEN_UPDATE = 2,
-		OPEN_APPEND = 3
 	};
 	enum SeekMode {
 		SEEKMODE_START = 0,

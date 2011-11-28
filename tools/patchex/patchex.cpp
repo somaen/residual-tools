@@ -39,7 +39,7 @@
 #include <sys/types.h>
 
 #include "tools/patchex/mspack.h"
-#include "tools/patchex/cab.h"
+//#include "tools/patchex/cab.h"
 
 
 // Some useful type and function
@@ -77,9 +77,6 @@ const char *kLanguages_code2[] = { "Eng", "Fra", "Deu", "Ita", "Brz", "Esp",  NU
 using namespace Patchex;
 	
 int main(int argc, char *argv[]) {
-	//mscab_decompressor *cabd;
-	//struct mscabd_cabinet *cab;
-	int i;
 	unsigned int lang;
 	enum act action;
 	char *(*filter) (struct mscabd_file *);
@@ -92,7 +89,7 @@ int main(int argc, char *argv[]) {
 		printf("Extract update files of game update from PATCH_EXECUTABLE (e.g. gfupd101.exe) in a specified LANGUAGE.\n");
 		printf("Please be sure that the update contains this language.\n");
 		printf("Available languages:\n");
-		for (i = 0; kLanguages_code1[i]; i++)
+		for (int i = 0; kLanguages_code1[i]; i++)
 			printf("- %s\n", kLanguages_ext[i]);
 		printf("Alternately original archive could be extracted as original.cab with CABINET keyword insted of language.\n");
 		exit(1);
@@ -106,7 +103,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Language check
-	for(i = 0; kLanguages_code1[i]; i++)
+	for(int i = 0; kLanguages_code1[i]; i++)
 		if (strncasecmp(kLanguages_ext[i], argv[2], strlen(argv[2])) == 0) {
 			printf("%s selected.\n", kLanguages_ext[i]);
 			lang = i;
@@ -120,29 +117,14 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	//res_system *sys = new res_system();
-
 	// Extraction !
 	CabFile cabd(argv[1]);
 	cabd.SetLanguage(lang);
-	//if ((cabd = mspack_create_cab_decompressor()) != MSPACK_ERR_OK) {
-		//cabd->open(argv[1]);
-		//cabd->printFiles();
-		//if (cabd->last_error() == MSPACK_ERR_OK) {
-			if (action == CABINET_ACTION)
-				cabd.ExtractCabinet();
-			else if (action == LOCALISED_ACTION)
-				cabd.ExtractFiles();
-			cabd.Close();
-		/*} else
-			printf("Unable to open %s!\n", argv[1]);
-		delete cabd;*/
-	/*} else {
-		printf("Internal error!\n");
-		exit(1);
-	}*/
+	if (action == CABINET_ACTION)
+		cabd.ExtractCabinet();
+	else if (action == LOCALISED_ACTION)
+		cabd.ExtractFiles();
+	cabd.Close();
 	
-	//	delete sys;
-
 	return 0;
 }

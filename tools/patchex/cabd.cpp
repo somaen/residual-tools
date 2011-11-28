@@ -510,17 +510,19 @@ mscabd_decompress_state::mscabd_decompress_state() {
 }
 
 int mscabd_decompress_state::ZipDecompress(off_t preread, off_t offset, off_t length) {
-	Bytef *test;
+	Bytef *data;
 	// len = the entire block decompressed.
 	// length = the size of the file at hand.
-	unsigned int len = zlibDecompress(preread, offset, length, test);
-	test+=offset;
-	if (write(_initfh, test, length) != length) {
+	unsigned int len = zlibDecompress(preread, offset, length, data);
+
+	if (write(_initfh, data+offset, length) != length) {
 		printf("Write-error\n");
+		delete[] data;
 		return MSPACK_ERR_WRITE;
-	}
-	else
+	} else {
+		delete[] data;
 		return MSPACK_ERR_OK;
+	}
 }
 
 int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t length, Bytef *&ret) {
@@ -532,7 +534,7 @@ int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t l
 	const uint32_t block = 32768;
 	in = new Bytef[block*4];
 	Bytef *in_tmp = in;
-	Bytef *in_end = in;
+	//Bytef *in_end = in;
 	Bytef *dest = new Bytef[size + block]; // 8 MiB ought to be enough.
 	Bytef *dest_tmp = dest;
 	ret = new Bytef[size * 2];
@@ -558,24 +560,20 @@ int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t l
 	unsigned int cksum;
 	int len;
 	
-	//_i_ptr = _i_end = &_input[0];
-
 	const int PARAM_FIXMSZIP = 0;
 	int ignore_cksum = PARAM_FIXMSZIP && ((_comp_type & cffoldCOMPTYPE_MASK) == cffoldCOMPTYPE_MSZIP);
 	ignore_cksum = 1;
 	while (decompressed < size) {
 		in = in_tmp;
-		in_end = in;
+		//	in_end = in;
 
 		// Read header
 		if (_infh->read(&hdr[0], cfdata_SIZEOF) != cfdata_SIZEOF) {
-			printf ("MSPACK_ERR_READ - line 615\n");
 			return MSPACK_ERR_READ;
 		}
 		
 		if (_data->cab->_block_resv && _infh->seek((off_t) _data->cab->_block_resv, PackFile::SEEKMODE_CUR))
 		{
-			printf ("MSPACK_ERR_SEEK - line 621\n");
 			return MSPACK_ERR_SEEK;
 		}
 
@@ -584,20 +582,17 @@ int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t l
 		int uncompressed = EndGetI16(&hdr[cfdata_UncompressedSize]);
 		//printf("Uncompressed block size: %d\n", uncompressed);
 		if (EndGetI16(&hdr[cfdata_UncompressedSize]) > CAB_BLOCKMAX) {
-			printf ("MSPACK_ERR_DATAFORMAT - line 635\n");
 			return MSPACK_ERR_DATAFORMAT;
 		}
 		
 		if (_infh->read(in, len) != len) {
-			printf ("MSPACK_ERR_READ - line 640\n");
 			return MSPACK_ERR_READ;
 		}
-		in_end = in + len;
+		//in_end = in + len;
 			
 		if ((cksum = EndGetI32(&hdr[cfdata_CheckSum]))) {
 			unsigned int sum2 = cabd_checksum(in, (unsigned int) len, 0);
 			if (cabd_checksum(&hdr[4], 4, sum2) != cksum) {
-				printf("Bad Checksum\n");
 				if (!ignore_cksum) return MSPACK_ERR_CHECKSUM;
 				fprintf(stderr, "WARNING; bad block checksum found\n");
 			}
@@ -631,13 +626,11 @@ int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t l
 		inflateReset(&zStream);
 		inflateSetDictionary(&zStream, dest, outsize);
 	}
-	//printf ("!!!FINAL SIZE: %d\n",dest-ret);
 	
 	inflateEnd(&zStream);
 	delete[] dest;
-	//printf("Decompressed: %d\n", decompressed);
+
 	return size;
-	//	return dest;
 }
 
 int mscabd_decompress_state::init(PackFile * fh, unsigned int ct) {
