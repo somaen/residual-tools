@@ -74,6 +74,7 @@ struct mscabd_folder_data;
 class mscabd_decompress_state {
 public:
 	mscabd_decompress_state();
+	~mscabd_decompress_state();
 	int init(PackFile * fh, unsigned int ct);
 	
 	mscabd_folder *_folder;
@@ -91,7 +92,12 @@ public:
 
 	unsigned char *_i_ptr, *_i_end;
 	unsigned char _input[CAB_INPUTMAX];
+	
+	char *getFileBuf() { return _fileBuf; }
+	unsigned int getFileBufLen() { return _fileBufLen; }
 private:
+	int _fileBufLen;
+	char *_fileBuf;
 	int write(struct PackFile *file, void *buffer, int bytes);
 	struct PackFile *_initfh;
 };
@@ -129,20 +135,21 @@ struct mscab_decompressor {
 	void open(std::string filename);
 	void close();
 	void printFiles();
-	void extract_files();
 	
 	int extract(struct mscabd_file *file, std::string filename);
 	int last_error();
 	
 	unsigned int getCabLength() { return _cab->_length; }
+	mscabd_cabinet *getCab() { return _cab; }
 
 	unsigned int lang;
-private:
-	
+
 	struct mscabd_decompress_state *d;
+private:
+
 	int error;
 	int init_decomp(unsigned int ct);
-	void free_decomp();
+	//void free_decomp();
 	mscabd_cabinet *_cab;
 	std::string read_string(PackFile *fh, mscabd_cabinet *, int *error);
 	std::string file_filter(const struct mscabd_file *file);
@@ -168,6 +175,7 @@ struct mscabd_folder {
 struct mscabd_file {
 	mscabd_file(PackFile * fh, mscabd_cabinet *cab);
 	mscabd_file *_next;
+	
 	std::string _filename;
 	unsigned int _length;
 	int _attribs;

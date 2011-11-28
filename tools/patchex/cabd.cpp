@@ -56,16 +56,10 @@ mscab_decompressor::mscab_decompressor() {
 }
 
 mscab_decompressor::~mscab_decompressor() {
-	free_decomp();
-	
 	if (d) {
 		delete d;
 		d = NULL;
 	}
-}
-
-void mscab_decompressor::free_decomp() {
-
 }
 
 void mscab_decompressor::open(std::string filename)
@@ -78,6 +72,7 @@ void mscab_decompressor::open(std::string filename)
 	_cab = new mscabd_cabinet(filename);
 	error = _cab->read_headers((off_t) 0, 0);
 	if (error) {
+		printf("Header-read-error\n");
 		close();
 		_cab = NULL;
 	} 
@@ -107,7 +102,6 @@ void mscab_decompressor::close()
 				if (d->_infh) {
 					delete d->_infh;
 				}
-				free_decomp();
 				delete d;
 				d = NULL;
 			}
@@ -417,7 +411,6 @@ int mscab_decompressor::extract(mscabd_file *file, std::string filename)
 			d->_incab = fol->_data.cab;
 			d->_infh = new PackFile(fol->_data.cab->GetFilename(), PackFile::OPEN_READ);
 			if (!d->_infh) {
-				printf("Crashed here\n");
 				return error = MSPACK_ERR_OPEN;	
 			}
 		}
@@ -461,25 +454,6 @@ int mscab_decompressor::extract(mscabd_file *file, std::string filename)
 	return error;
 }
 
-void mscab_decompressor::extract_files() {
-	unsigned int files_extracted = 0;
-	struct mscabd_file *file;
-	std::string filename;
-	
-	for (file = _cab->_files; file; file = file->_next) {
-		if ((filename = file_filter(file)) != "") {
-			if (extract(file, filename.c_str()) != MSPACK_ERR_OK) {
-				printf("Extract error on %s!\n", file->_filename.c_str());
-				continue;
-			}
-			printf("%s extracted as %s\n", file->_filename.c_str(), filename.c_str());
-			++files_extracted;
-		}
-	}
-	
-	printf("%d file(s) extracted.\n", files_extracted);
-}
-
 int mscab_decompressor::last_error() {
 	return error;
 }
@@ -497,32 +471,37 @@ int mscab_decompressor::init_decomp(unsigned int ct)
 {
 	struct PackFile *fh = (struct PackFile *) this;
 	
-	free_decomp();
-	
 	return error = d->init(fh, ct);
 }
 
 mscabd_decompress_state::mscabd_decompress_state() {
-	_folder	= NULL;
-	_data	= NULL;
-	_infh	= NULL;
-	_incab	= NULL;
+	_folder		= NULL;
+	_data		= NULL;
+	_infh		= NULL;
+	_incab		= NULL;
+	_fileBuf	= NULL;
+	_fileBufLen	= 0;
 }
 
+mscabd_decompress_state::~mscabd_decompress_state() {
+	if (_fileBuf) {
+		delete[] _fileBuf;
+	}
+}
 int mscabd_decompress_state::ZipDecompress(off_t preread, off_t offset, off_t length) {
-	Bytef *data;
+	if (_fileBuf) {
+		delete[] _fileBuf;
+		_fileBuf = NULL;
+	}
 	// len = the entire block decompressed.
 	// length = the size of the file at hand.
+	_fileBuf = new char[length];
+	Bytef *data;
 	unsigned int len = zlibDecompress(preread, offset, length, data);
+	memcpy(_fileBuf, (data+offset), length);
+	_fileBufLen = length;
 
-	if (write(_initfh, data+offset, length) != length) {
-		printf("Write-error\n");
-		delete[] data;
-		return MSPACK_ERR_WRITE;
-	} else {
-		delete[] data;
-		return MSPACK_ERR_OK;
-	}
+	return MSPACK_ERR_OK;
 }
 
 int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t length, Bytef *&ret) {
@@ -643,11 +622,8 @@ int mscabd_decompress_state::init(PackFile * fh, unsigned int ct) {
 
 int mscabd_decompress_state::write(struct PackFile *file, void *buffer, int bytes) {
 	struct mscab_decompressor *handle = (struct mscab_decompressor *) file;
-	/*handle->d->_offset += bytes;
-	if (handle->d->_outfh) {*/
 	if (_outfh) {
 		return _outfh->write(buffer, bytes);
-		//return handle->d->_outfh->write(buffer, bytes);
 	}
 	return bytes;
 }
@@ -667,71 +643,6 @@ static unsigned int cabd_checksum(unsigned char *data, unsigned int bytes, unsig
 	cksum ^= ul;
 	
 	return cksum;
-}
-
-#define LANG_ALL1 "@@"
-#define LANG_ALL2 "Common"
-
-//unsigned int lang;
-
-std::string mscab_decompressor::file_filter(const struct mscabd_file *file) {
-	const char *kLanguages_ext[] = { "English", "French", "German", "Italian", "Portuguese", "Spanish", NULL};
-	const char *kLanguages_code1[] = { "US", "FR", "GE", "IT", "PT", "SP",  NULL };
-	const char *kLanguages_code2[] = { "Eng", "Fra", "Deu", "Ita", "Brz", "Esp",  NULL };
-	//printf("%s\n",file->_filename.c_str());
-	//	if(file->_filename != "@@_Patch05.bin")
-	//	return "";
-	
-	char *filename;
-	std::string retFilename;
-	unsigned int filename_size;
-	
-	//printf("Lang = %d\n",lang);
-	filename_size = file->_filename.length();
-	
-	//Skip executables and libries
-	const char *ext = file->_filename.substr(filename_size - 3).c_str();
-
-	if (strcasecmp(ext, "exe") == 0 ||
-		strcasecmp(ext, "dll") == 0 ||
-		strcasecmp(ext, "flt") == 0 ||
-		strcasecmp(ext, "asi") == 0) {
-		return "";
-	}
-	
-	filename = new char[filename_size + 1];
-	
-	//Old-style localization (Grimfandango)
-	if (filename_size > 3 &&  file->_filename[2] == '_') {
-		//printf("Grim-style\n");
-		char file_lang[3];
-		sscanf(file->_filename.c_str(), "%2s_%s",file_lang, filename);
-		//printf("File_lang: %s\n", file_lang);
-		retFilename = std::string(filename);
-		if (strcmp(file_lang, kLanguages_code1[lang]) == 0 || strcmp(file_lang, LANG_ALL1) == 0) {
-			//	printf("MATCHES LANGUAGE!!!!!!! %s\n", retFilename.c_str());
-			delete[] filename;
-			return retFilename;
-		}
-	}
-	
-	//Folder-style localization (EMI)
-	unsigned int lcode_size_com, lcode_size_loc;
-	lcode_size_com = strlen(LANG_ALL2);
-	lcode_size_loc = strlen(kLanguages_code2[lang]);
-	if ((filename_size > lcode_size_com && strncmp(file->_filename.c_str(), LANG_ALL2, lcode_size_com - 1) == 0) ||
-	    (filename_size > lcode_size_loc && strncmp(file->_filename.c_str(), kLanguages_code2[lang], lcode_size_loc) == 0) ) {
-		char *fn = rindex(file->_filename.c_str(), '\\') + 1;
-		if (fn != NULL) {
-			retFilename = std::string(fn);
-//			strcpy(filename, fn);
-			delete[] filename;
-			return retFilename;
-		}
-	}
-	
-	delete[] filename;
-	return "";
 }
 
 // CabFile
@@ -754,8 +665,8 @@ void CabFile::SetLanguage(unsigned int lang) {
 	_cabd->lang = _lang;
 }
 
-#define BUFFER_SIZE 		102400
 void CabFile::ExtractCabinet() {
+	const int BUFFER_SIZE = 102400;
 	struct PackFile *original_executable, *destination_cabinet;
 	char *buffer;
 	unsigned int copied_bytes;
@@ -779,9 +690,101 @@ void CabFile::ExtractCabinet() {
 	delete destination_cabinet;
 }
 
-
 void CabFile::ExtractFiles() {
-	_cabd->extract_files();
+	//_cabd->extract_files();
+	unsigned int files_extracted = 0;
+	struct mscabd_file *file;
+	std::string filename;
+	
+	for (file = _cabd->getCab()->_files; file; file = file->_next) {
+		if ((filename = FileFilter(file)) != "") {
+			if (_cabd->extract(file, filename.c_str()) != MSPACK_ERR_OK) {
+				printf("Extract error on %s!\n", file->_filename.c_str());
+				continue;
+			}
+			Write(filename, _cabd->d->getFileBuf(), _cabd->d->getFileBufLen());
+			printf("%s extracted as %s\n", file->_filename.c_str(), filename.c_str());
+			++files_extracted;
+		}
+	}
+	
+	printf("%d file(s) extracted.\n", files_extracted);
+}
+
+void CabFile::Extract(std::string filename) {
+	struct mscabd_file *file;
+	std::string fname;
+	for (file = _cabd->getCab()->_files; file; file = file->_next) {
+		if ((fname = FileFilter(file)) == filename || filename == file->_filename) {
+			if (_cabd->extract(file, fname.c_str()) != MSPACK_ERR_OK) {
+				printf("Extract error on %s!\n", file->_filename.c_str());
+			}
+			Write(fname, _cabd->d->getFileBuf(), _cabd->d->getFileBufLen());
+			printf("%s extracted as %s\n", file->_filename.c_str(), filename.c_str());
+			break;
+		}
+	}
+}
+
+void CabFile::Write(std::string filename, char *data, unsigned int length) {
+	PackFile *fh = new PackFile(filename, PackFile::OPEN_WRITE);
+	fh->write(data, length);
+	delete fh;
+}
+
+#define LANG_ALL1 "@@"
+#define LANG_ALL2 "Common"
+std::string CabFile::FileFilter(const struct mscabd_file *file) {
+	const char *kLanguages_ext[] = { "English", "French", "German", "Italian", "Portuguese", "Spanish", NULL};
+	const char *kLanguages_code1[] = { "US", "FR", "GE", "IT", "PT", "SP",  NULL };
+	const char *kLanguages_code2[] = { "Eng", "Fra", "Deu", "Ita", "Brz", "Esp",  NULL };
+	
+	char *filename;
+	std::string retFilename;
+	unsigned int filename_size;
+	
+	filename_size = file->_filename.length();
+	
+	//Skip executables and libries
+	const char *ext = file->_filename.substr(filename_size - 3).c_str();
+	
+	if (strcasecmp(ext, "exe") == 0 ||
+		strcasecmp(ext, "dll") == 0 ||
+		strcasecmp(ext, "flt") == 0 ||
+		strcasecmp(ext, "asi") == 0) {
+		return "";
+	}
+	
+	filename = new char[filename_size + 1];
+	
+	//Old-style localization (Grimfandango)
+	if (filename_size > 3 &&  file->_filename[2] == '_') {
+		char file_lang[3];
+		sscanf(file->_filename.c_str(), "%2s_%s",file_lang, filename);
+		retFilename = std::string(filename);
+		if (strcmp(file_lang, kLanguages_code1[_lang]) == 0 || strcmp(file_lang, LANG_ALL1) == 0) {
+			delete[] filename;
+			return retFilename;
+		}
+	}
+	
+	//Folder-style localization (EMI)
+	unsigned int lcode_size_com, lcode_size_loc;
+	lcode_size_com = strlen(LANG_ALL2);
+	lcode_size_loc = strlen(kLanguages_code2[_lang]);
+	if ((filename_size > lcode_size_com && strncmp(file->_filename.c_str(), LANG_ALL2, lcode_size_com - 1) == 0) ||
+	    (filename_size > lcode_size_loc && strncmp(file->_filename.c_str(), kLanguages_code2[_lang], lcode_size_loc) == 0) ) {
+		char *fn = rindex(file->_filename.c_str(), '\\') + 1;
+		if (fn != NULL) {
+			retFilename = std::string(fn);
+			//			strcpy(filename, fn);
+			delete[] filename;
+			return retFilename;
+		}
+	}
+	
+	delete[] filename;
+	return "";
 }
 
 void CabFile::OpenCAB(std::string filename)

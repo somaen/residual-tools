@@ -42,12 +42,8 @@
 #include <sys/types.h>
 #include <string>
 
-
-
 struct mscab_decompressor;
 struct mscabd_file;
-struct mscabd_cabinet;
-class PackFile;
 
 class CabFile {
 	mscab_decompressor *_cabd;
@@ -55,6 +51,8 @@ class CabFile {
 	std::string _filename;
 	unsigned int _lang;
 	void OpenCAB(std::string filename);
+	std::string FileFilter(const struct mscabd_file *file);
+	void Write(std::string filename, char *data, unsigned int length);
 public:
 	CabFile(std::string filename);
 	~CabFile();
@@ -62,6 +60,7 @@ public:
 	void SetLanguage(unsigned int);
 	void ExtractCabinet();
 	void ExtractFiles();
+	void Extract(std::string filename);
 };
 
 #endif
