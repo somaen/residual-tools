@@ -45,14 +45,12 @@
 #include <cstring>
 #include <string>
 
-//struct mspack_file;
 class mscabd_decompress_state;
-
+/*
 class dec_system {
 public:
 	int write(struct PackFile *file, void *buffer, int bytes);
-};
-
+};*/
 
 #define MSPACK_ERR_OK          (0)
 #define MSPACK_ERR_ARGS        (1)
@@ -64,10 +62,8 @@ public:
 #define MSPACK_ERR_SIGNATURE   (7)
 #define MSPACK_ERR_DATAFORMAT  (8)
 #define MSPACK_ERR_CHECKSUM    (9)
-#define MSPACK_ERR_CRUNCH      (10)
-#define MSPACK_ERR_DECRUNCH    (11)
-
-//extern struct mscab_decompressor *mspack_create_cab_decompressor();
+//#define MSPACK_ERR_CRUNCH      (10)
+//#define MSPACK_ERR_DECRUNCH    (11)
 
 struct mscab_decompressor;
 struct mscabd_folder;

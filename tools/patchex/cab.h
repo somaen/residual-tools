@@ -47,18 +47,17 @@ const int cfdata_CompressedSize		= (0x04);
 const int cfdata_UncompressedSize	= (0x06);
 const int cfdata_SIZEOF				= (0x08);
 
-const int cffoldCOMPTYPE_MASK		= (0x000f);
-const int cffoldCOMPTYPE_NONE		= (0x0000);
-const int cffoldCOMPTYPE_MSZIP		= (0x0001);
-const int cfheadPREV_CABINET		= (0x0001);
-const int cfheadNEXT_CABINET		= (0x0002);
-const int cfheadRESERVE_PRESENT		= (0x0004);
+const unsigned int cffoldCOMPTYPE_MASK		= (0x000f);
+const unsigned int cffoldCOMPTYPE_NONE		= (0x0000);
+const unsigned int cffoldCOMPTYPE_MSZIP		= (0x0001);
+const unsigned int cfheadPREV_CABINET		= (0x0001);
+const unsigned int cfheadNEXT_CABINET		= (0x0002);
+const unsigned int cfheadRESERVE_PRESENT	= (0x0004);
 
 #define CAB_BLOCKMAX (32768)
 #define CAB_INPUTMAX (CAB_BLOCKMAX+6144)
 
-struct mspack_system;
-//struct mszipd_stream;
+//struct mspack_system;
 struct mscabd_folder;
 struct mscabd_folder_data;
 class mscabd_decompress_state;
@@ -66,7 +65,6 @@ class mscabd_decompress_state;
 class mscabd_decompress_state {
 public:
 	mscabd_decompress_state();
-	~mscabd_decompress_state();
 	int init(PackFile * fh, unsigned int ct);
 	
 	mscabd_folder *_folder;
@@ -78,15 +76,16 @@ public:
 	int decompress(off_t preread, off_t offset, off_t length) { return ZipDecompress(preread, offset, length); }
 	int ZipDecompress(off_t preread, off_t offset, off_t length);
 	int	zlibDecompress(off_t preread, off_t offset, off_t length, Bytef *&ret);
-	//mszipd_stream *_state;
 	struct mscabd_cabinet *_incab;
 	struct PackFile *_infh;
 	struct PackFile *_outfh;
+
 	unsigned char *_i_ptr, *_i_end;
 	unsigned char _input[CAB_INPUTMAX];
 private:
+	int write(struct PackFile *file, void *buffer, int bytes);
 	struct PackFile *_initfh;
-	dec_system _decsys;
+	//dec_system _decsys;
 };
 
 char *file_filter(const struct mscabd_file *file);
@@ -94,7 +93,6 @@ char *file_filter(const struct mscabd_file *file);
 struct mscabd_cabinet {
 	mscabd_cabinet(std::string fname);
 	int read_headers(off_t offset, int quiet);
-	//std::string read_string(int *error);
 	int read_block(int *out, int ignore_cksum);
 	std::string GetFilename() { return _filename; }
 	mscabd_cabinet *_next;
@@ -129,12 +127,13 @@ struct mscab_decompressor {
 	int last_error();
 	
 	unsigned int getCabLength() { return _cab->_length; }
-//private:
+
+	unsigned int lang;
+private:
 	
-//	int param[3];
 	struct mscabd_decompress_state *d;
 	int error;
-	unsigned int lang;
+
 private:
 		
 	int init_decomp(unsigned int ct);

@@ -86,6 +86,6 @@ tools/vima$(EXEEXT): $(srcdir)/tools/vima.cpp
 
 tools/patchex/patchex$(EXEEXT): tools/patchex/patchex.o tools/patchex/mszipd.o tools/patchex/cabd.o tools/patchex/packfile.o
 	$(MKDIR) tools/patchex/$(DEPDIR)
-	$(CXX) $(CFLAGS) tools/patchex/mszipd.o tools/patchex/cabd.o tools/patchex/packfile.o -Wall -o $@ $<
+	$(CXX) $(CFLAGS) tools/patchex/mszipd.o tools/patchex/cabd.o tools/patchex/packfile.o -Wall -lz -o $@ $<
 
 .PHONY: clean-tools tools
