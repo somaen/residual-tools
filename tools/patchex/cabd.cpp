@@ -152,8 +152,6 @@ int mscabd_cabinet::read_headers(off_t offset, int quiet)
 	
 	// Duplicated in mscab_folder-constructor:
 	const int CFFOLD_DataOffset = 0x00;
-	//	const int CFFOLD_NumBlocks = 0x04;
-	//	const int CFFOLD_CompType = 0x06;
 	const int CFFOLD_SIZEOF = 0x08;
 	
 	int num_folders, num_files, folder_resv, i, x;
@@ -199,7 +197,6 @@ int mscabd_cabinet::read_headers(off_t offset, int quiet)
 	
 	// Get num files (should be >0)
 	num_files = EndGetI16(&buf[CFHEAD_NumFiles]);
-	printf("Num_files in cabinet: %d\n",num_files);
 	if (num_files == 0) {
 		if (!quiet) fprintf(stderr, "no files in cabinet.");
 		return MSPACK_ERR_DATAFORMAT;
@@ -366,8 +363,6 @@ mscabd_folder::mscabd_folder(unsigned char buf[64]) {
 	_comp_type  = EndGetI16(&buf[CFFOLD_CompType]);
 	_num_blocks = EndGetI16(&buf[CFFOLD_NumBlocks]);
 	_data.next       = NULL;
-	//fol->data.cab        = (struct mscabd_cabinet *) this;
-	//fol->data.offset     = offset + (off_t)	( (unsigned int) EndGetI32(&buf[cffold_DataOffset]) );
 	_merge_prev      = NULL;
 	_merge_next      = NULL;
 }
@@ -510,10 +505,9 @@ int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t l
 	int size = offset - preread + length;
 	int outsize = 0;
 	int decompressed = 0;
-	const uint32_t block = 32768;
+	const uint32 block = 32768;
 	in = new Bytef[block*4];
 	Bytef *in_tmp = in;
-	//Bytef *in_end = in;
 	Bytef *dest = new Bytef[size + block]; // 8 MiB ought to be enough.
 	Bytef *dest_tmp = dest;
 	ret = new Bytef[size * 2];
@@ -544,7 +538,6 @@ int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t l
 	ignore_cksum = 1;
 	while (decompressed < size) {
 		in = in_tmp;
-		//	in_end = in;
 
 		// Read header
 		if (_infh->read(&hdr[0], cfdata_SIZEOF) != cfdata_SIZEOF) {
@@ -559,7 +552,7 @@ int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t l
 		len = EndGetI16(&hdr[cfdata_CompressedSize]);
 
 		int uncompressed = EndGetI16(&hdr[cfdata_UncompressedSize]);
-		//printf("Uncompressed block size: %d\n", uncompressed);
+
 		if (EndGetI16(&hdr[cfdata_UncompressedSize]) > CAB_BLOCKMAX) {
 			return MSPACK_ERR_DATAFORMAT;
 		}
@@ -567,7 +560,6 @@ int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t l
 		if (_infh->read(in, len) != len) {
 			return MSPACK_ERR_READ;
 		}
-		//in_end = in + len;
 			
 		if ((cksum = EndGetI32(&hdr[cfdata_CheckSum]))) {
 			unsigned int sum2 = cabd_checksum(in, (unsigned int) len, 0);
@@ -589,7 +581,7 @@ int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t l
 	
 		success = inflate(&zStream, Z_SYNC_FLUSH);
 		
-		decompressed += zStream.total_out;//block - zStream.avail_out;
+		decompressed += zStream.total_out;
 
 		memcpy(ret_tmp, dest, zStream.total_out);
 		ret_tmp+=zStream.total_out;
@@ -691,7 +683,6 @@ void CabFile::ExtractCabinet() {
 }
 
 void CabFile::ExtractFiles() {
-	//_cabd->extract_files();
 	unsigned int files_extracted = 0;
 	struct mscabd_file *file;
 	std::string filename;
@@ -779,30 +770,4 @@ std::string CabFile::FileFilter(const struct mscabd_file *file) {
 	
 	delete[] filename;
 	return "";
-}
-
-void CabFile::OpenCAB(std::string filename)
-{/* 
-	struct mspack_file *fh;
-	
-	if (_cab)
-		close();
-	
-	if ((fh = system->open(filename, PackFile::OPEN_READ))) {
-		if (_cab = new mscabd_cabinet()) {
-			_cab->filename = filename;
-			error = read_headers(fh, (mscabd_cabinet_p *) _cab, (off_t) 0, 0);
-			if (error) {
-				close();
-				_cab = NULL;
-			}
-		}
-		else {
-			error = MSPACK_ERR_NOMEMORY;
-		}
-		system->close(fh);
-	}
-	else {
-		error = MSPACK_ERR_OPEN;
-	}*/
 }
