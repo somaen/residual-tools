@@ -149,7 +149,7 @@ private:
 
 	int error;
 	int init_decomp(unsigned int ct);
-	//void free_decomp();
+
 	mscabd_cabinet *_cab;
 	std::string read_string(PackFile *fh, mscabd_cabinet *, int *error);
 	std::string file_filter(const struct mscabd_file *file);

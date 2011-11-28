@@ -51,7 +51,6 @@ class CabFile {
 	mscabd_file *_files;
 	std::string _filename;
 	unsigned int _lang;
-	void OpenCAB(std::string filename);
 	std::string FileFilter(const struct mscabd_file *file);
 	void Write(std::string filename, char *data, unsigned int length);
 public:
