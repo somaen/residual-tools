@@ -495,7 +495,7 @@ int mscabd_decompress_state::ZipDecompress(off_t preread, off_t offset, off_t le
 	unsigned int len = zlibDecompress(preread, offset, length, data);
 	memcpy(_fileBuf, (data+offset), length);
 	_fileBufLen = length;
-
+	delete[] data; // Delete the buffer containing all the data, as we have copied out what we need, this is not the best way though.
 	return MSPACK_ERR_OK;
 }
 
@@ -510,8 +510,9 @@ int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t l
 	Bytef *in_tmp = in;
 	Bytef *dest = new Bytef[size + block]; // 8 MiB ought to be enough.
 	Bytef *dest_tmp = dest;
-	ret = new Bytef[size * 2];
+	ret = new Bytef[size * 16]; // FIXME: This buffer shouldn't need to be this big.
 	Bytef * ret_tmp = ret;
+	
 	int success = 0;
 	z_stream_s zStream;
 	
@@ -600,7 +601,6 @@ int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t l
 	
 	inflateEnd(&zStream);
 	delete[] dest;
-
 	return size;
 }
 

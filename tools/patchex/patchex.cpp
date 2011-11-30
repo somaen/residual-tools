@@ -39,8 +39,6 @@
 #include <sys/types.h>
 
 #include "tools/patchex/mspack.h"
-//#include "tools/patchex/cab.h"
-
 
 // Some useful type and function
 typedef unsigned char byte;
