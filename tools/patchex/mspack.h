@@ -51,16 +51,16 @@ class CabFile {
 	mscabd_file *_files;
 	std::string _filename;
 	unsigned int _lang;
-	std::string FileFilter(const struct mscabd_file *file);
-	void Write(std::string filename, char *data, unsigned int length);
+	std::string fileFilter(const struct mscabd_file *file);
+	void write(std::string filename, char *data, unsigned int length);
 public:
 	CabFile(std::string filename);
 	~CabFile();
-	void Close();
-	void SetLanguage(unsigned int);
-	void ExtractCabinet();
-	void ExtractFiles();
-	void Extract(std::string filename);
+	void close();
+	void setLanguage(unsigned int);
+	void extractCabinet();
+	void extractFiles();
+	void extract(std::string filename);
 };
 
 #endif

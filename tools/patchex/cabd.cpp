@@ -648,16 +648,16 @@ CabFile::CabFile(std::string filename) {
 CabFile::~CabFile() {
 	delete _cabd;
 }
-void CabFile::Close() {
+void CabFile::close() {
 	delete _cabd;
 	_cabd = NULL;
 }
-void CabFile::SetLanguage(unsigned int lang) {
+void CabFile::setLanguage(unsigned int lang) {
 	_lang = lang;
 	_cabd->lang = _lang;
 }
 
-void CabFile::ExtractCabinet() {
+void CabFile::extractCabinet() {
 	const unsigned int BUFFER_SIZE = 102400;
 	struct PackFile *original_executable, *destination_cabinet;
 	char *buffer;
@@ -692,18 +692,18 @@ void CabFile::ExtractCabinet() {
 	delete destination_cabinet;
 }
 
-void CabFile::ExtractFiles() {
+void CabFile::extractFiles() {
 	unsigned int files_extracted = 0;
 	struct mscabd_file *file;
 	std::string filename;
 	
 	for (file = _cabd->getCab()->_files; file; file = file->_next) {
-		if ((filename = FileFilter(file)) != "") {
+		if ((filename = fileFilter(file)) != "") {
 			if (_cabd->extract(file, filename.c_str()) != MSPACK_ERR_OK) {
 				printf("Extract error on %s!\n", file->_filename.c_str());
 				continue;
 			}
-			Write(filename, _cabd->d->getFileBuf(), _cabd->d->getFileBufLen());
+			write(filename, _cabd->d->getFileBuf(), _cabd->d->getFileBufLen());
 			printf("%s extracted as %s\n", file->_filename.c_str(), filename.c_str());
 			++files_extracted;
 		}
@@ -712,29 +712,29 @@ void CabFile::ExtractFiles() {
 	printf("%d file(s) extracted.\n", files_extracted);
 }
 
-void CabFile::Extract(std::string filename) {
+void CabFile::extract(std::string filename) {
 	struct mscabd_file *file;
 	std::string fname;
 	for (file = _cabd->getCab()->_files; file; file = file->_next) {
-		if ((fname = FileFilter(file)) == filename || filename == file->_filename) {
+		if ((fname = fileFilter(file)) == filename || filename == file->_filename) {
 			if (_cabd->extract(file, fname.c_str()) != MSPACK_ERR_OK) {
 				printf("Extract error on %s!\n", file->_filename.c_str());
 			}
-			Write(fname, _cabd->d->getFileBuf(), _cabd->d->getFileBufLen());
+			write(fname, _cabd->d->getFileBuf(), _cabd->d->getFileBufLen());
 			printf("%s extracted as %s\n", file->_filename.c_str(), filename.c_str());
 			break;
 		}
 	}
 }
 
-void CabFile::Write(std::string filename, char *data, unsigned int length) {
+void CabFile::write(std::string filename, char *data, unsigned int length) {
 	PackFile *fh = new PackFile(filename, PackFile::OPEN_WRITE);
 	fh->write(data, length);
 	delete fh;
 }
 
 #define LANG_ALL "@@"
-std::string CabFile::FileFilter(const struct mscabd_file *file) {
+std::string CabFile::fileFilter(const struct mscabd_file *file) {
 	const char *kLanguages_ext[] = { "English", "French", "German", "Italian", "Portuguese", "Spanish", NULL};
 	const char *kLanguages_code[] = { "US", "FR", "GE", "IT", "PT", "SP",  NULL };
 	
