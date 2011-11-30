@@ -658,11 +658,11 @@ void CabFile::SetLanguage(unsigned int lang) {
 }
 
 void CabFile::ExtractCabinet() {
-	const int BUFFER_SIZE = 102400;
+	const unsigned int BUFFER_SIZE = 102400;
 	struct PackFile *original_executable, *destination_cabinet;
 	char *buffer;
-	unsigned int copied_bytes;
-	int count;
+	unsigned int copied_bytes, remBytes, lenght;
+	int count, writeResult;
 	
 	original_executable = new PackFile(_filename.c_str(), PackFile::OPEN_READ);
 	destination_cabinet = new PackFile("original.cab", PackFile::OPEN_WRITE);
@@ -670,10 +670,20 @@ void CabFile::ExtractCabinet() {
 	buffer = new char[BUFFER_SIZE];
 	copied_bytes = 0;
 	
-	while (copied_bytes < _cabd->getCabLength()) {
-		count = original_executable->read(buffer, BUFFER_SIZE);
-		destination_cabinet->write(buffer, count);
+	lenght =  _cabd->getCabLength();
+	while (copied_bytes < lenght) {
+		remBytes = lenght - copied_bytes;
+		count = original_executable->read(buffer, (remBytes < BUFFER_SIZE) ? remBytes : BUFFER_SIZE);
+		writeResult = destination_cabinet->write(buffer, count);
 		copied_bytes  += count;
+
+		if (count < 0 || writeResult < 0) {
+			printf("I/O Error!\n");
+			delete[] buffer;
+			delete original_executable;
+			delete destination_cabinet;
+			exit(1);
+		}
 	}
 	printf("Update cabinet extracted as original.cab.\n");
 	
