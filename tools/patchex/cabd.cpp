@@ -386,7 +386,7 @@ int mscab_decompressor::extract(mscabd_file *file, std::string filename)
 		return error = MSPACK_ERR_DATAFORMAT;
 	}
 	
-	if (d) {
+	if (d) {	// Not the best solution, but this resets any state between the files.
 		delete d;
 		d = NULL;
 	}
@@ -435,16 +435,13 @@ int mscab_decompressor::extract(mscabd_file *file, std::string filename)
 	if (file->_length) {
 		off_t bytes;
 		int internal_error;
-		d->_outfh = NULL;
 		
 		if (!error) {
-			d->_outfh = fh;
 			internal_error = d->decompress(d->_offset, file->_offset, file->_length);
 		}
 	}
 	
 	delete fh;
-	d->_outfh = NULL;
 	
 	return error;
 }
@@ -610,14 +607,6 @@ int mscabd_decompress_state::init(PackFile * fh, unsigned int ct) {
 	
 	assert ((ct & cffoldCOMPTYPE_MASK) == cffoldCOMPTYPE_MSZIP);
 	return MSPACK_ERR_OK;
-}
-
-int mscabd_decompress_state::write(struct PackFile *file, void *buffer, int bytes) {
-	struct mscab_decompressor *handle = (struct mscab_decompressor *) file;
-	if (_outfh) {
-		return _outfh->write(buffer, bytes);
-	}
-	return bytes;
 }
 
 static unsigned int cabd_checksum(unsigned char *data, unsigned int bytes, unsigned int cksum) {
