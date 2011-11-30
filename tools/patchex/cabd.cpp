@@ -771,12 +771,11 @@ std::string CabFile::fileFilter(const struct mscabd_file *file) {
 	
 	/* Folder-style localization (EMI) Because EMI updates aren't multi-language,
 	 * every file is extracted (except for Win's binaries). Subfolders are ignored */
-	strcpy(filename, file->_filename.c_str());
-	char *fn = strchr(filename, '\\');
-	if (fn != NULL && fn[0] != 0) {
-		retFilename = std::string(fn);
+	std::size_t pos = file->_filename.rfind('\\');
+	if (pos != std::string::npos) {
+		std::string fn = file->_filename.substr(pos + 1);
 		delete[] filename;
-		return retFilename;
+		return fn;
 	}
 	
 	delete[] filename;
