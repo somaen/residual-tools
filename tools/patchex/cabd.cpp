@@ -508,9 +508,8 @@ int mscabd_decompress_state::ZipDecompress(off_t offset, off_t length) {
 	// len = the entire block decompressed.
 	// length = the size of the file at hand.
 	_fileBuf = new char[length];
-	unsigned int len = zlibDecompress(offset, length);
-	_fileBufLen = len;
-	return MSPACK_ERR_OK;
+	_fileBufLen = length;
+	return zlibDecompress(offset, length);
 }
 
 void mscabd_decompress_state::copyBlock(int startBlock, int endBlock, off_t inBlockStart, off_t inBlockEnd, Bytef *&data_ptr) {
@@ -528,7 +527,7 @@ void mscabd_decompress_state::copyBlock(int startBlock, int endBlock, off_t inBl
 
 int mscabd_decompress_state::zlibDecompress(off_t offset, off_t length) {
 	// Ref: http://blogs.kde.org/node/3181
-	int uncompressedLen, compressedLen, decompressed = 0;
+	int uncompressedLen, compressedLen;
 	int success;
 	int startBlock, endBlock;
 	off_t inBlockStart, inBlockEnd;
@@ -589,10 +588,9 @@ int mscabd_decompress_state::zlibDecompress(off_t offset, off_t length) {
 		
 		if ((success != Z_STREAM_END) && (success != Z_OK)) {
 			printf("zLib decompression error!\n");
-			return 0;
+			return MSPACK_ERR_READ;
 		}
 
-		decompressed += _zStream.total_out;
 		inflateReset(&_zStream);
 		inflateSetDictionary(&_zStream, decompressedBlock, uncompressedLen);
 
@@ -600,7 +598,7 @@ int mscabd_decompress_state::zlibDecompress(off_t offset, off_t length) {
 
 		copyBlock(startBlock, endBlock, inBlockStart, inBlockEnd, ret_tmp);
 	}
-	return decompressed;
+	return MSPACK_ERR_OK;
 }
 
 int mscabd_decompress_state::init(PackFile * fh, unsigned int ct) {
