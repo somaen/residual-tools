@@ -117,12 +117,12 @@ int main(int argc, char *argv[]) {
 
 	// Extraction !
 	CabFile cabd(argv[1]);
-	cabd.SetLanguage(lang);
+	cabd.setLanguage(lang);
 	if (action == CABINET_ACTION)
-		cabd.ExtractCabinet();
+		cabd.extractCabinet();
 	else if (action == LOCALISED_ACTION)
-		cabd.ExtractFiles();
-	cabd.Close();
+		cabd.extractFiles();
+	cabd.close();
 	
 	return 0;
 }

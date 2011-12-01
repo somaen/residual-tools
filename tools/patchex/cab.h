@@ -88,7 +88,6 @@ public:
 	int zlibDecompress(off_t offset, off_t length);
 	struct mscabd_cabinet *_incab;
 	struct PackFile *_infh;
-	struct PackFile *_outfh;
 
 	unsigned char *_i_ptr, *_i_end;
 	unsigned char _input[CAB_INPUTMAX];
@@ -99,9 +98,8 @@ private:
 	int _fileBufLen;
 	char *_fileBuf;
 	z_stream_s _zStream;
-	int write(struct PackFile *file, void *buffer, int bytes);
-	struct PackFile *_initfh;
 
+	struct PackFile *_initfh;
 	Bytef *compressedBlock;
 	Bytef *decompressedBlock;
 
