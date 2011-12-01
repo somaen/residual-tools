@@ -56,10 +56,7 @@ mscab_decompressor::mscab_decompressor() {
 }
 
 mscab_decompressor::~mscab_decompressor() {
-	if (d) {
-		delete d;
-		d = NULL;
-	}
+	close();
 }
 
 void mscab_decompressor::open(std::string filename)
@@ -134,6 +131,11 @@ void mscab_decompressor::close()
 
 mscabd_cabinet::mscabd_cabinet(std::string fname) : _filename(fname) {
 	_fh = new PackFile(_filename, PackFile::OPEN_READ);
+}
+
+mscabd_cabinet::~mscabd_cabinet() {
+	if(_fh)
+		delete _fh;
 }
 
 int mscabd_cabinet::read_headers(off_t offset, int quiet)

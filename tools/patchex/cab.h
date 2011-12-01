@@ -110,6 +110,7 @@ char *file_filter(const struct mscabd_file *file);
 
 struct mscabd_cabinet {
 	mscabd_cabinet(std::string fname);
+	~mscabd_cabinet();
 	int read_headers(off_t offset, int quiet);
 	int read_block(int *out, int ignore_cksum);
 	std::string GetFilename() { return _filename; }
