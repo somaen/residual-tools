@@ -110,7 +110,7 @@ PackFile::PackFile(std::string filename, int mode) {
 				if (count == 4 && memcmp(&magic, CABINET_MAGIC, 4) == 0) {
 					break;
 				} else {
-					delete this->CodeTable;
+					delete [] this->CodeTable;
 					this->CodeTable = NULL;
 					continue;
 				}
