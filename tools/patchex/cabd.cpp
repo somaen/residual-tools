@@ -56,10 +56,7 @@ mscab_decompressor::mscab_decompressor() {
 }
 
 mscab_decompressor::~mscab_decompressor() {
-	if (d) {
-		delete d;
-		d = NULL;
-	}
+	close();
 }
 
 void mscab_decompressor::open(std::string filename)
@@ -134,6 +131,11 @@ void mscab_decompressor::close()
 
 mscabd_cabinet::mscabd_cabinet(std::string fname) : _filename(fname) {
 	_fh = new PackFile(_filename, PackFile::OPEN_READ);
+}
+
+mscabd_cabinet::~mscabd_cabinet() {
+	if(_fh)
+		delete _fh;
 }
 
 int mscabd_cabinet::read_headers(off_t offset, int quiet)
@@ -385,12 +387,7 @@ int mscab_decompressor::extract(mscabd_file *file, std::string filename)
 				"cabinet set is incomplete.", file->_filename.c_str());
 		return error = MSPACK_ERR_DATAFORMAT;
 	}
-	
-	if (d) {	// Not the best solution, but this resets any state between the files.
-		delete d;
-		d = NULL;
-	}
-	
+
 	if (!d) {
 		d = new mscabd_decompress_state();
 		if (!d) return error = MSPACK_ERR_NOMEMORY;
@@ -406,7 +403,7 @@ int mscab_decompressor::extract(mscabd_file *file, std::string filename)
 			d->_incab = fol->_data.cab;
 			d->_infh = new PackFile(fol->_data.cab->GetFilename(), PackFile::OPEN_READ);
 			if (!d->_infh) {
-				return error = MSPACK_ERR_OPEN;	
+				return error = MSPACK_ERR_OPEN;
 			}
 		}
 
@@ -421,7 +418,7 @@ int mscab_decompressor::extract(mscabd_file *file, std::string filename)
 		d->_folder = fol;
 		d->_data   = &fol->_data;
 		d->_offset = 0;
-		d->_block  = 0;
+		d->_block  = -1;
 		d->_i_ptr = d->_i_end = &d->_input[0];
 	}
 	
@@ -437,7 +434,7 @@ int mscab_decompressor::extract(mscabd_file *file, std::string filename)
 		int internal_error;
 		
 		if (!error) {
-			internal_error = d->decompress(d->_offset, file->_offset, file->_length);
+			internal_error = d->decompress(file->_offset, file->_length);
 		}
 	}
 	
@@ -473,14 +470,37 @@ mscabd_decompress_state::mscabd_decompress_state() {
 	_incab		= NULL;
 	_fileBuf	= NULL;
 	_fileBufLen	= 0;
+
+	_zStream.next_in = Z_NULL;
+	_zStream.avail_in = 0;
+	_zStream.zalloc = Z_NULL;
+	_zStream.zfree = Z_NULL;
+	_zStream.opaque = Z_NULL;
+
+	int success = inflateInit2(&_zStream, -MAX_WBITS);
+	if(success != Z_OK){
+		printf("ZLIB failed to initialize\n");
+		return;
+	}
+
+	decompressedBlock = new Bytef[CAB_BLOCKMAX];
+	compressedBlock = new Bytef[CAB_INPUTMAX];
 }
 
 mscabd_decompress_state::~mscabd_decompress_state() {
 	if (_fileBuf) {
 		delete[] _fileBuf;
 	}
+
+	if (decompressedBlock)
+		delete[] decompressedBlock;
+
+	if (compressedBlock)
+		delete[] compressedBlock;
+
+	inflateEnd(&_zStream);
 }
-int mscabd_decompress_state::ZipDecompress(off_t preread, off_t offset, off_t length) {
+int mscabd_decompress_state::ZipDecompress(off_t offset, off_t length) {
 	if (_fileBuf) {
 		delete[] _fileBuf;
 		_fileBuf = NULL;
@@ -488,117 +508,97 @@ int mscabd_decompress_state::ZipDecompress(off_t preread, off_t offset, off_t le
 	// len = the entire block decompressed.
 	// length = the size of the file at hand.
 	_fileBuf = new char[length];
-	Bytef *data;
-	unsigned int len = zlibDecompress(preread, offset, length, data);
-	memcpy(_fileBuf, (data+offset), length);
 	_fileBufLen = length;
-	delete[] data; // Delete the buffer containing all the data, as we have copied out what we need, this is not the best way though.
-	return MSPACK_ERR_OK;
+	return zlibDecompress(offset, length);
 }
 
-int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t length, Bytef *&ret) {
-	// Ref: http://blogs.kde.org/node/3181
-	Bytef *in;
-	int size = offset - preread + length;
-	int outsize = 0;
-	int decompressed = 0;
-	const uint32 block = 32768;
-	in = new Bytef[block*4];
-	Bytef *in_tmp = in;
-	Bytef *dest = new Bytef[size + block]; // 8 MiB ought to be enough.
-	Bytef *dest_tmp = dest;
-	ret = new Bytef[size * 16]; // FIXME: This buffer shouldn't need to be this big.
-	Bytef * ret_tmp = ret;
-	
-	int success = 0;
-	z_stream_s zStream;
-	
-	zStream.next_in = Z_NULL;
-	zStream.avail_in = 0;
-	zStream.zalloc = Z_NULL;
-	zStream.zfree = Z_NULL;
-	zStream.opaque = Z_NULL;
-	
-	success = inflateInit2(&zStream, -MAX_WBITS);
+void mscabd_decompress_state::copyBlock(int startBlock, int endBlock, off_t inBlockStart, off_t inBlockEnd, Bytef *&data_ptr) {
+	off_t start, end, size;
 
-	if(success != Z_OK){
-		printf("ZLIB failed to initialize\n");
-		return 0;
+	if(startBlock <= _block && _block <= endBlock) {
+		start = (startBlock == _block) ? inBlockStart: 0;
+		end = (endBlock == _block) ? inBlockEnd : CAB_BLOCKMAX;
+		size = end - start;
+
+		memcpy(data_ptr, decompressedBlock + start, size);
+		data_ptr += size;
 	}
-	// Headerparse
-	
+}
+
+int mscabd_decompress_state::zlibDecompress(off_t offset, off_t length) {
+	// Ref: http://blogs.kde.org/node/3181
+	int uncompressedLen, compressedLen;
+	int success;
+	int startBlock, endBlock;
+	off_t inBlockStart, inBlockEnd;
 	unsigned char hdr[cfdata_SIZEOF];
 	unsigned int cksum;
-	int len;
-	
 	const int PARAM_FIXMSZIP = 0;
 	int ignore_cksum = PARAM_FIXMSZIP && ((_comp_type & cffoldCOMPTYPE_MASK) == cffoldCOMPTYPE_MSZIP);
-	ignore_cksum = 1;
-	while (decompressed < size) {
-		in = in_tmp;
 
-		// Read header
+	Bytef * ret_tmp = (Bytef *)_fileBuf;
+
+	startBlock = int(offset / CAB_BLOCKMAX);
+	inBlockStart = off_t(offset % CAB_BLOCKMAX);
+	endBlock = int((offset + length)/ CAB_BLOCKMAX);
+	inBlockEnd = off_t((offset + length) % CAB_BLOCKMAX);
+
+	//if a part of this file has been decompressed in the last block, make a copy of it
+	copyBlock(startBlock, endBlock, inBlockStart, inBlockEnd, ret_tmp);
+
+	while((_block+1) <= endBlock) {
+		// Read the CFDATA header
 		if (_infh->read(&hdr[0], cfdata_SIZEOF) != cfdata_SIZEOF) {
 			return MSPACK_ERR_READ;
 		}
-		
-		if (_data->cab->_block_resv && _infh->seek((off_t) _data->cab->_block_resv, PackFile::SEEKMODE_CUR))
-		{
+
+		if (_data->cab->_block_resv && _infh->seek((off_t) _data->cab->_block_resv, PackFile::SEEKMODE_CUR)) {
 			return MSPACK_ERR_SEEK;
 		}
 
-		len = EndGetI16(&hdr[cfdata_CompressedSize]);
+		compressedLen = EndGetI16(&hdr[cfdata_CompressedSize]);
+		uncompressedLen = EndGetI16(&hdr[cfdata_UncompressedSize]);
 
-		int uncompressed = EndGetI16(&hdr[cfdata_UncompressedSize]);
-
-		if (EndGetI16(&hdr[cfdata_UncompressedSize]) > CAB_BLOCKMAX) {
+		if (uncompressedLen > CAB_BLOCKMAX) {
 			return MSPACK_ERR_DATAFORMAT;
 		}
-		
-		if (_infh->read(in, len) != len) {
+
+		if (_infh->read(compressedBlock, compressedLen) != compressedLen) {
 			return MSPACK_ERR_READ;
 		}
-			
+
 		if ((cksum = EndGetI32(&hdr[cfdata_CheckSum]))) {
-			unsigned int sum2 = cabd_checksum(in, (unsigned int) len, 0);
+			unsigned int sum2 = cabd_checksum(compressedBlock, (unsigned int) compressedLen, 0);
 			if (cabd_checksum(&hdr[4], 4, sum2) != cksum) {
 				if (!ignore_cksum) return MSPACK_ERR_CHECKSUM;
 				fprintf(stderr, "WARNING; bad block checksum found\n");
 			}
 		}
-		
-		in+=2; // Skip the CK-header
 
-		int avail, todo, outlen = 0, ignore_cksum;
-		avail = len;
+		//Check the CK header
+		assert(compressedBlock[0] == 'C');
+		assert(compressedBlock[1] == 'K');
 
-		zStream.avail_in = avail;
-		zStream.next_in = in;
-		zStream.avail_out = block;
-		zStream.next_out = dest;
-	
-		success = inflate(&zStream, Z_SYNC_FLUSH);
-		
-		decompressed += zStream.total_out;
+		_zStream.avail_in = compressedLen - 2;
+		_zStream.next_in = compressedBlock + 2;
+		_zStream.avail_out += uncompressedLen;
+		_zStream.next_out = decompressedBlock;
 
-		memcpy(ret_tmp, dest, zStream.total_out);
-		ret_tmp+=zStream.total_out;
+		success = inflate(&_zStream, Z_SYNC_FLUSH);
 		
-		outsize = decompressed;
-		outsize = zStream.total_out;
-		
-		if(success != Z_STREAM_END) {
-			printf("ERROR: decompressed size bigger than 64 KiB\n");
-			return 0;
+		if ((success != Z_STREAM_END) && (success != Z_OK)) {
+			printf("zLib decompression error!\n");
+			return MSPACK_ERR_READ;
 		}
-	
-		inflateReset(&zStream);
-		inflateSetDictionary(&zStream, dest, outsize);
+
+		inflateReset(&_zStream);
+		inflateSetDictionary(&_zStream, decompressedBlock, uncompressedLen);
+
+		_block++;
+
+		copyBlock(startBlock, endBlock, inBlockStart, inBlockEnd, ret_tmp);
 	}
-	
-	inflateEnd(&zStream);
-	delete[] dest;
-	return size;
+	return MSPACK_ERR_OK;
 }
 
 int mscabd_decompress_state::init(PackFile * fh, unsigned int ct) {
