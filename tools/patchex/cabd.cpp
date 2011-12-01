@@ -506,7 +506,7 @@ int mscabd_decompress_state::zlibDecompress(off_t preread, off_t offset, off_t l
 	int outsize = 0;
 	int decompressed = 0;
 	const uint32 block = 32768;
-	in = new Bytef[block*4];
+	in = new Bytef[block+12]; //According to MSZIP specification this is the maximum size of a block
 	Bytef *in_tmp = in;
 	Bytef *dest = new Bytef[size + block]; // 8 MiB ought to be enough.
 	Bytef *dest_tmp = dest;
