@@ -80,12 +80,12 @@ public:
 	mscabd_folder *_folder;
 	mscabd_folder_data *_data;
 	unsigned int _offset;
-	unsigned int _block;
+	int _block;
 	int _comp_type;
 	
-	int decompress(off_t preread, off_t offset, off_t length) { return ZipDecompress(preread, offset, length); }
-	int ZipDecompress(off_t preread, off_t offset, off_t length);
-	int	zlibDecompress(off_t preread, off_t offset, off_t length, Bytef *&ret);
+	int decompress(off_t offset, off_t length) { return ZipDecompress(offset, length); }
+	int ZipDecompress(off_t offset, off_t length);
+	int zlibDecompress(off_t offset, off_t length);
 	struct mscabd_cabinet *_incab;
 	struct PackFile *_infh;
 
@@ -97,13 +97,20 @@ public:
 private:
 	int _fileBufLen;
 	char *_fileBuf;
+	z_stream_s _zStream;
+
 	struct PackFile *_initfh;
+	Bytef *compressedBlock;
+	Bytef *decompressedBlock;
+
+	void copyBlock(int startBlock, int endBlock, off_t inBlockStart, off_t inBlockEnd, Bytef *&data_ptr);
 };
 
 char *file_filter(const struct mscabd_file *file);
 
 struct mscabd_cabinet {
 	mscabd_cabinet(std::string fname);
+	~mscabd_cabinet();
 	int read_headers(off_t offset, int quiet);
 	int read_block(int *out, int ignore_cksum);
 	std::string GetFilename() { return _filename; }
